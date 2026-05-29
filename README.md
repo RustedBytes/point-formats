@@ -1,6 +1,6 @@
-# lidar-format-convert
+# point-formats
 
-`lidar-format-convert` is a Rust crate and CLI for converting among LiDAR,
+`point-formats` is a Rust crate and CLI for converting among LiDAR,
 point-cloud, and simple mesh formats with a preservation-first data model.
 
 The crate is intentionally split into:

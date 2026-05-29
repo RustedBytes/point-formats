@@ -908,7 +908,7 @@ fn write_common_header<W: Write>(
 ) -> Result<()> {
     writeln!(writer, "ply")?;
     writeln!(writer, "format ascii 1.0")?;
-    writeln!(writer, "comment created by lidar-format-convert")?;
+    writeln!(writer, "comment created by point-formats")?;
     writeln!(writer, "element vertex {vertex_count}")?;
     writeln!(writer, "property double x")?;
     writeln!(writer, "property double y")?;
@@ -947,7 +947,7 @@ pub fn write<W: Write>(writer: &mut W, geometry: &Geometry, options: &PlyOptions
             Geometry::PointCloud(cloud) => {
                 writeln!(writer, "ply")?;
                 writeln!(writer, "format binary_little_endian 1.0")?;
-                writeln!(writer, "comment created by lidar-format-convert")?;
+                writeln!(writer, "comment created by point-formats")?;
                 writeln!(writer, "element vertex {}", cloud.points.len())?;
                 writeln!(writer, "property double x")?;
                 writeln!(writer, "property double y")?;
@@ -1004,7 +1004,7 @@ pub fn write<W: Write>(writer: &mut W, geometry: &Geometry, options: &PlyOptions
             Geometry::Mesh(mesh) => {
                 writeln!(writer, "ply")?;
                 writeln!(writer, "format binary_little_endian 1.0")?;
-                writeln!(writer, "comment created by lidar-format-convert")?;
+                writeln!(writer, "comment created by point-formats")?;
                 writeln!(writer, "element vertex {}", mesh.vertices.len())?;
                 writeln!(writer, "property double x")?;
                 writeln!(writer, "property double y")?;

@@ -309,7 +309,7 @@ fn serialize_connection_data(topic: &str) -> Vec<u8> {
         ("type", "sensor_msgs/PointCloud2"),
         ("md5sum", "1158d486dd51d683ce2f1be655c3c181"),
         ("message_definition", "Header header\nuint32 height\nuint32 width\nPointField[] fields\nbool is_bigendian\nuint32 point_step\nuint32 row_step\nuint8[] data\nbool is_dense\n================================================================================\nMSG: std_msgs/Header\nuint32 seq\ntime stamp\nstring frame_id\n================================================================================\nMSG: sensor_msgs/PointField\nuint8 INT8=1\nuint8 UINT8=2\nuint8 INT16=3\nuint8 UINT16=4\nuint8 INT32=5\nuint8 UINT32=6\nuint8 FLOAT32=7\nuint8 FLOAT64=8\nstring name\nuint32 offset\nuint8 datatype\nuint32 count\n"),
-        ("callerid", "/lidar-format-convert"),
+        ("callerid", "/point-formats"),
     ];
 
     for &(key, val) in &fields {

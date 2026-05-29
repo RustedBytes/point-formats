@@ -345,7 +345,7 @@ fn build_gltf_json_and_bin(geometry: &Geometry) -> Result<(serde_json::Value, Ve
     let gltf_json = serde_json::json!({
         "asset": {
             "version": "2.0",
-            "generator": "lidar-format-convert"
+            "generator": "point-formats"
         },
         "scene": 0,
         "scenes": [

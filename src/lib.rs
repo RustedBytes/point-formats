@@ -1,4 +1,4 @@
-//! `lidar-format-convert` is a dependency-light crate for converting among
+//! `point-formats` is a dependency-light crate for converting among
 //! common LiDAR, point-cloud, and simple mesh interchange formats.
 //!
 //! The crate deliberately separates two concerns:
