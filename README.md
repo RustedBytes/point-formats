@@ -182,4 +182,4 @@ assert_eq!(a.color, b.color);
 
 ## License
 
-Dual-licensed under MIT or Apache-2.0.
+MIT.
