@@ -364,6 +364,136 @@ fn e57_attributes_roundtrip() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+#[test]
+#[cfg(feature = "geospatial")]
+fn geojson_attributes_roundtrip() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.geojson");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::GeoJson, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::GeoJson, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert_eq!(p_orig.return_number, p_dec.return_number);
+            assert_eq!(p_orig.number_of_returns, p_dec.number_of_returns);
+            assert_eq!(p_orig.gps_time, p_dec.gps_time);
+            assert_eq!(p_orig.scan_angle, p_dec.scan_angle);
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "geospatial")]
+fn geojson_raw_parsing_test() {
+    let raw_geojson = r##"{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [10.0, 20.0, 30.0]
+                },
+                "properties": {
+                    "intensity": 50.0,
+                    "classification": 3,
+                    "color": "#ff00ff"
+                }
+            },
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "MultiPoint",
+                    "coordinates": [
+                        [40.0, 50.0, 60.0]
+                    ]
+                },
+                "properties": {
+                    "intensity": 10.0
+                }
+            }
+        ]
+    }"##;
+
+    let mut cursor = std::io::Cursor::new(raw_geojson.as_bytes());
+    let decoded_geom = io::geojson::read(&mut cursor).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), 2);
+        approx(decoded.points[0].position.x, 10.0);
+        approx(decoded.points[0].position.y, 20.0);
+        approx(decoded.points[0].position.z, 30.0);
+        assert_eq!(decoded.points[0].intensity, Some(50.0));
+        assert_eq!(decoded.points[0].classification, Some(3));
+        assert_eq!(decoded.points[0].color, Some(Color::new(65535, 0, 65535)));
+
+        approx(decoded.points[1].position.x, 40.0);
+        approx(decoded.points[1].position.y, 50.0);
+        approx(decoded.points[1].position.z, 60.0);
+        assert_eq!(decoded.points[1].intensity, Some(10.0));
+    } else {
+        panic!("expected point cloud");
+    }
+}
+
+#[test]
+#[cfg(feature = "geospatial")]
+fn geotiff_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.tif");
+
+    let p1 = Point::new(10.0, 20.0, 5.0);
+    let p2 = Point::new(20.0, 20.0, 10.0);
+    let p3 = Point::new(10.0, 10.0, 15.0);
+    let p4 = Point::new(20.0, 10.0, 20.0);
+    let original = PointCloud::new(vec![p1, p2, p3, p4]);
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::GeoTiff, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::GeoTiff, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        let min_x = decoded.points.iter().map(|p| p.position.x).fold(f64::INFINITY, f64::min);
+        let max_x = decoded.points.iter().map(|p| p.position.x).fold(f64::NEG_INFINITY, f64::max);
+        let min_y = decoded.points.iter().map(|p| p.position.y).fold(f64::INFINITY, f64::min);
+        let max_y = decoded.points.iter().map(|p| p.position.y).fold(f64::NEG_INFINITY, f64::max);
+
+        assert!((min_x - 10.0).abs() < 1.0);
+        assert!((max_x - 20.0).abs() < 1.0);
+        assert!((min_y - 10.0).abs() < 1.0);
+        assert!((max_y - 20.0).abs() < 1.0);
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
 fn unique_temp_dir() -> PathBuf {
     let mut path = std::env::temp_dir();
     path.push(format!(

@@ -221,6 +221,8 @@ impl Format {
             Self::Copc => FormatSupport::NativeReadOnly,
             #[cfg(feature = "e57")]
             Self::E57 => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "geospatial")]
+            Self::GeoTiff | Self::Cog | Self::GeoJson => FormatSupport::NativeReadWrite,
 
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
@@ -228,14 +230,13 @@ impl Format {
             Self::Copc => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "e57"))]
             Self::E57 => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "geospatial"))]
+            Self::GeoTiff | Self::Cog | Self::GeoJson => FormatSupport::AdapterRequired,
 
-            Self::GeoTiff
-            | Self::Cog
-            | Self::AsciiGrid
+            Self::AsciiGrid
             | Self::NetCdf
             | Self::Hdf5
             | Self::Shapefile
-            | Self::GeoJson
             | Self::Gpkg
             | Self::Fbx
             | Self::Gltf

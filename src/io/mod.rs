@@ -14,6 +14,10 @@ pub mod las;
 pub mod copc;
 #[cfg(feature = "e57")]
 pub mod e57;
+#[cfg(feature = "geospatial")]
+pub mod geojson;
+#[cfg(feature = "geospatial")]
+pub mod geotiff;
 
 use crate::error::{Error, Result};
 use crate::format::Format;
@@ -258,6 +262,12 @@ pub fn read_path(
         #[cfg(feature = "e57")]
         Format::E57 => e57::read(&mut reader),
 
+        #[cfg(feature = "geospatial")]
+        Format::GeoTiff | Format::Cog => geotiff::read(reader),
+
+        #[cfg(feature = "geospatial")]
+        Format::GeoJson => geojson::read(reader),
+
         _ => Err(Error::unsupported(format, "read", format.adapter_hint())),
     }
 }
@@ -305,6 +315,18 @@ pub fn write_path(
         Format::Las | Format::Laz => {
             let cloud = as_cloud_for_point_format(geometry, format)?;
             las::write(writer, cloud)
+        }
+
+        #[cfg(feature = "geospatial")]
+        Format::GeoTiff | Format::Cog => {
+            let cloud = as_cloud_for_point_format(geometry, format)?;
+            geotiff::write(writer, cloud)
+        }
+
+        #[cfg(feature = "geospatial")]
+        Format::GeoJson => {
+            let cloud = as_cloud_for_point_format(geometry, format)?;
+            geojson::write(writer, cloud)
         }
 
         _ => Err(Error::unsupported(format, "write", format.adapter_hint())),
