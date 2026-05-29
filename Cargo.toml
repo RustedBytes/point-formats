@@ -3,8 +3,8 @@ name = "lidar-format-convert"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.74"
-authors = ["OpenAI"]
-license = "MIT OR Apache-2.0"
+authors = ["Yehor Smoliakov <egorsmkv@gmail.com>"]
+license = "MIT"
 description = "Dependency-light LiDAR/point-cloud/mesh format conversion crate with explicit adapters for heavyweight formats."
 keywords = ["lidar", "point-cloud", "ply", "pcd", "las"]
 categories = ["science::geo", "encoding", "command-line-utilities"]
@@ -17,6 +17,18 @@ path = "src/lib.rs"
 [[bin]]
 name = "lidar-convert"
 path = "src/main.rs"
+
+[[example]]
+name = "check_e57"
+required-features = ["e57"]
+
+[[example]]
+name = "check_copc"
+required-features = ["copc"]
+
+[[example]]
+name = "check_las"
+required-features = ["las"]
 
 [features]
 default = []
