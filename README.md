@@ -18,35 +18,44 @@ semantics that must be handled deliberately.
 
 ## Native support in this crate
 
-| Format | Read | Write | Notes |
-|---|---:|---:|---|
-| XYZ / TXT | yes | yes | Whitespace text points; optional columns through `DelimitedOptions`. |
-| CSV | yes | yes | Header autodetection; configurable column mapping. |
-| PTS | yes | yes | Handles common count-first terrestrial scanner exports. |
-| PTX | yes | yes | Preserves PTX scanner transform metadata when present. |
-| PLY | yes | yes | ASCII and binary little-endian; point clouds and triangle meshes; 16-bit RGB preservation. |
-| PCD | yes | yes | PCD 0.7 ASCII and binary; arbitrary fields parsed enough to recover XYZ/intensity/color/class/normals. |
-| OBJ | yes | yes | Vertex-only point clouds and triangle meshes; polygon faces triangulated by fan. |
-| STL | yes | yes | ASCII and binary triangle meshes; point clouds require meshing before export. |
+Natively supported formats (compiled in by default or enabled via Cargo features):
+
+| Format | Extension | Feature Flag | Read | Write | Notes |
+|---|---|---|---:|---:|---|
+| XYZ / TXT | `.xyz`, `.txt` | *(default)* | yes | yes | Whitespace text points; optional columns through `DelimitedOptions`. |
+| CSV | `.csv` | *(default)* | yes | yes | Header autodetection; configurable column mapping. |
+| PTS | `.pts` | *(default)* | yes | yes | Handles common count-first terrestrial scanner exports. |
+| PTX | `.ptx` | *(default)* | yes | yes | Preserves PTX scanner transform metadata when present. |
+| PLY | `.ply` | *(default)* | yes | yes | ASCII and binary little-endian; point clouds and triangle meshes. |
+| PCD | `.pcd` | *(default)* | yes | yes | PCD 0.7 ASCII and binary; recovers XYZ, intensity, colors, normals. |
+| OBJ | `.obj` | *(default)* | yes | yes | Vertex-only point clouds and triangle meshes; fan triangulation. |
+| STL | `.stl` | *(default)* | yes | yes | ASCII and binary triangle meshes; points require meshing first. |
+| ASCII Grid | `.asc` | *(default)* | yes | yes | Native grid raster format; converts elevation grids. |
+| LAS / LAZ | `.las`, `.laz` | `las` / `laz` | yes | yes | Industry standard point clouds; utilizes `las` crate. |
+| COPC | `.copc.laz` | `copc` | yes | no | Cloud Optimized Point Cloud; utilizes `copc-rs`. |
+| E57 | `.e57` | `e57` | yes | yes | ASTM E57 format; utilizes `e57` crate. |
+| GeoTIFF / COG | `.tif`, `.tiff`, `.cog` | `geospatial` | yes | yes | Geospatial elevation raster grids. |
+| GeoJSON | `.geojson`, `.json` | `geospatial` | yes | yes | Geospatial JSON vector files mapping properties/geometries. |
+| Shapefile | `.shp` | `shapefile` | yes | yes | Esri Shapefile vector and DBF attributes. |
+| GeoPackage | `.gpkg` | `gpkg` | yes | yes | SQLite database spatial point features. |
+| glTF / GLB | `.gltf`, `.glb` | `gltf` | yes | yes | 3D graphics transmission format; maps points and meshes. |
+| DXF | `.dxf` | `dxf` | yes | yes | AutoCAD DXF format; maps points and Face3D meshes. |
+| ROS 1 Bag | `.bag` | `robotics` | yes | yes | ROS 1 serialization/deserialization for PointCloud2 streams. |
+| ROS 2 Bag | `.db3` | `robotics` | yes | yes | ROS 2 SQLite database CDR alignment-based serialization. |
+| PointCloud2 | `.pc2`, `.pointcloud2` | `robotics` | yes | yes | Direct ROS/DDS PointCloud2 message format. |
+| PCAP | `.pcap`, `.pcapng` | `sensor` | yes | yes | Raw network capture containing UDP point packets. |
+| UdpPackets | `.udp`, `.udppackets` | `sensor` | yes | yes | Stream format containing length-prefixed raw UDP payloads. |
+| VendorRaw | `.raw`, `.vendorraw` | `sensor` | yes | yes | High-performance flat binary point streams. |
 
 ## Represented but adapter-required
 
-The `Format` enum also represents LAS, LAZ, COPC, E57, RCP/RCS,
-Potree/EPT, GeoTIFF/COG, ASCII Grid, NetCDF/HDF5, Shapefile/GeoJSON/GPKG,
-FBX/glTF/GLB, DXF/DWG, PCAP/UDP/vendor raw, ROS bag/ROS 2 bag, and
-PointCloud2. Built-in conversion returns `Error::UnsupportedFormat` with a
-format-specific hint instead of silently dropping semantics.
+The `Format` enum also represents formats that require heavy external SDKs, specialized desktop applications, or complex user-defined pipelines. Built-in conversions for these return `Error::UnsupportedFormat` with a format-specific hint instead of silently dropping data:
 
-Recommended adapter directions:
-
-- LAS/LAZ: implement `adapters::Codec` using `las` with its LAZ feature flags.
-- COPC: implement `adapters::Codec` using `copc-rs` or a PDAL-backed pipeline.
-- E57: implement `adapters::Codec` using `e57`, preserving scan grouping and poses.
-- GeoTIFF/COG/ASCII Grid: add a rasterization policy before writing rasters.
-- ROS/PCAP/vendor raw: decode packets/messages first, including calibration,
-  timestamps, frames, and topic selection.
-- CAD/DCC formats: add mesh/CAD-specific adapters and document unsupported point
-  attributes.
+- **RCP / RCS**: Autodesk proprietary scan project formats.
+- **Potree / EPT**: Large-scale web-tiled point cloud octree systems.
+- **NetCDF / HDF5**: Scientific dataset containers that need database/mesh mapping policies.
+- **FBX**: Filmbox proprietary 3D asset interchange format.
+- **DWG**: AutoCAD proprietary design drawing format.
 
 ## CLI
 
@@ -122,6 +131,15 @@ src/
     pcd.rs          # PCD ASCII/binary
     obj.rs          # OBJ
     stl.rs          # STL ASCII/binary
+    asciigrid.rs    # ASCII Grid
+    geojson.rs      # GeoJSON
+    geotiff.rs      # GeoTIFF / COG
+    shapefile.rs    # Shapefile
+    gpkg.rs         # GeoPackage
+    gltf.rs         # glTF / GLB
+    dxf.rs          # DXF
+    robotics.rs     # ROS bags, ROS 2 SQLite bags, PointCloud2 messages
+    sensor.rs       # PCAP, UdpPackets, VendorRaw
   main.rs           # CLI
 ```
 
