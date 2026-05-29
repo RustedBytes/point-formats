@@ -19,6 +19,12 @@ pub mod geojson;
 #[cfg(feature = "geospatial")]
 pub mod geotiff;
 
+pub mod asciigrid;
+#[cfg(feature = "dxf")]
+pub mod dxf;
+#[cfg(feature = "shapefile")]
+pub mod shapefile;
+
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::types::Geometry;
@@ -235,6 +241,12 @@ pub fn read_path(
     options: &NativeOptions,
 ) -> Result<Geometry> {
     let path = path.as_ref();
+
+    #[cfg(feature = "shapefile")]
+    if matches!(format, Format::Shapefile) {
+        return shapefile::read(path);
+    }
+
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     match format {
@@ -252,6 +264,10 @@ pub fn read_path(
         Format::Pcd => pcd::read(&mut reader),
         Format::Obj => obj::read(&mut reader),
         Format::Stl => stl::read(&mut reader),
+        Format::AsciiGrid => asciigrid::read(&mut reader),
+        
+        #[cfg(feature = "dxf")]
+        Format::Dxf => dxf::read(&mut reader),
         
         #[cfg(feature = "las")]
         Format::Las | Format::Laz => las::read(reader),
@@ -286,6 +302,12 @@ pub fn write_path(
         return e57::write_to_path(path, cloud);
     }
 
+    #[cfg(feature = "shapefile")]
+    if matches!(format, Format::Shapefile) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return shapefile::write(path, cloud);
+    }
+
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
     match format {
@@ -310,6 +332,13 @@ pub fn write_path(
         ),
         Format::Obj => obj::write(&mut writer, geometry),
         Format::Stl => stl::write(&mut writer, geometry, &options.stl),
+        Format::AsciiGrid => {
+            let cloud = as_cloud_for_point_format(geometry, format)?;
+            asciigrid::write(&mut writer, cloud)
+        }
+        
+        #[cfg(feature = "dxf")]
+        Format::Dxf => dxf::write(&mut writer, geometry),
         
         #[cfg(feature = "las")]
         Format::Las | Format::Laz => {

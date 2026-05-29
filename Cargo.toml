@@ -25,9 +25,11 @@ las = ["dep:las"]
 laz = ["las", "las/laz"]
 copc = ["dep:copc-rs"]
 e57 = ["dep:e57"]
-geospatial = ["dep:tiff", "dep:geojson", "dep:serde_json"]
+geospatial = ["dep:tiff", "dep:geojson", "dep:serde_json", "dep:shapefile"]
 robotics = []
-vendor = []
+vendor = ["dep:dxf"]
+dxf = ["dep:dxf"]
+shapefile = ["dep:shapefile", "dep:dbase"]
 
 [dependencies]
 las = { version = "=0.9.4", optional = true }
@@ -36,6 +38,9 @@ e57 = { version = "0.11.12", optional = true }
 tiff = { version = "0.11.3", optional = true }
 geojson = { version = "1.0.0", optional = true }
 serde_json = { version = "1.0", optional = true }
+dxf = { version = "0.6.1", optional = true }
+shapefile = { version = "0.8.0", optional = true }
+dbase = { version = "0.7.0", optional = true }
 uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]

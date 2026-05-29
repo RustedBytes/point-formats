@@ -213,7 +213,8 @@ impl Format {
             | Self::Pts
             | Self::Ptx
             | Self::Obj
-            | Self::Stl => FormatSupport::NativeReadWrite,
+            | Self::Stl
+            | Self::AsciiGrid => FormatSupport::NativeReadWrite,
 
             #[cfg(feature = "las")]
             Self::Las | Self::Laz => FormatSupport::NativeReadWrite,
@@ -223,6 +224,10 @@ impl Format {
             Self::E57 => FormatSupport::NativeReadWrite,
             #[cfg(feature = "geospatial")]
             Self::GeoTiff | Self::Cog | Self::GeoJson => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "dxf")]
+            Self::Dxf => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "shapefile")]
+            Self::Shapefile => FormatSupport::NativeReadWrite,
 
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
@@ -232,16 +237,17 @@ impl Format {
             Self::E57 => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "geospatial"))]
             Self::GeoTiff | Self::Cog | Self::GeoJson => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "dxf"))]
+            Self::Dxf => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "shapefile"))]
+            Self::Shapefile => FormatSupport::AdapterRequired,
 
-            Self::AsciiGrid
-            | Self::NetCdf
+            Self::NetCdf
             | Self::Hdf5
-            | Self::Shapefile
             | Self::Gpkg
             | Self::Fbx
             | Self::Gltf
             | Self::Glb
-            | Self::Dxf
             | Self::Dwg
             | Self::Potree
             | Self::Ept

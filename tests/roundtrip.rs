@@ -506,3 +506,130 @@ fn unique_temp_dir() -> PathBuf {
     ));
     path
 }
+
+#[test]
+fn asciigrid_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.asc");
+
+    let p1 = Point::new(10.0, 20.0, 5.5);
+    let p2 = Point::new(20.0, 20.0, 10.5);
+    let p3 = Point::new(10.0, 10.0, 15.5);
+    let p4 = Point::new(20.0, 10.0, 20.5);
+    let original = PointCloud::new(vec![p1, p2, p3, p4]);
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::AsciiGrid, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::AsciiGrid, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert!(!decoded.points.is_empty());
+        let bounds = decoded.bounds().unwrap();
+        approx(bounds.min.x, 10.0);
+        approx(bounds.min.y, 10.0);
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "dxf")]
+fn dxf_point_cloud_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.dxf");
+
+    let original = PointCloud::new(vec![
+        Point::new(1.0, 2.0, 3.0),
+        Point::new(4.0, 5.0, 6.0),
+    ]);
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Dxf, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), 2);
+        approx(decoded.points[0].position.x, 1.0);
+        approx(decoded.points[0].position.y, 2.0);
+        approx(decoded.points[0].position.z, 3.0);
+        approx(decoded.points[1].position.x, 4.0);
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "dxf")]
+fn dxf_mesh_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.dxf");
+
+    let mesh = Mesh::new(
+        vec![
+            Vertex::new(Vec3::new(0.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(0.0, 1.0, 0.0)),
+        ],
+        vec![Face::new(0, 1, 2)],
+    );
+    let geometry = Geometry::Mesh(mesh);
+
+    io::write_path(&file_path, Format::Dxf, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
+    if let Geometry::Mesh(decoded) = decoded_geom {
+        assert_eq!(decoded.faces.len(), 1);
+        assert_eq!(decoded.vertices.len(), 3);
+        approx(decoded.vertices[1].position.x, 1.0);
+    } else {
+        panic!("expected mesh");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "shapefile")]
+fn shapefile_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.shp");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Shapefile, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Shapefile, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity, p_dec.intensity);
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert_eq!(p_orig.gps_time, p_dec.gps_time);
+            assert_eq!(p_orig.scan_angle, p_dec.scan_angle);
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
