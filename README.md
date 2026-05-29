@@ -1,5 +1,7 @@
 # point-formats
 
+[![Crates.io Version](https://img.shields.io/crates/v/point-formats)](https://crates.io/crates/point-formats)
+
 `point-formats` is a Rust crate and CLI for converting among LiDAR,
 point-cloud, and simple mesh formats with a preservation-first data model.
 
