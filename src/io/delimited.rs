@@ -19,18 +19,28 @@ pub fn read<R: BufRead>(
     let mut first_data_seen = false;
     let mut header_decided = options.has_header;
 
-    for (line_idx, line) in reader.lines().enumerate() {
-        let line_no = line_idx + 1;
-        let line = line?;
+    let mut line = String::new();
+    let mut fields = Vec::new();
+    let mut line_no = 0;
+
+    loop {
+        fields.clear();
+        line.clear();
+        let bytes_read = reader.read_line(&mut line)?;
+        if bytes_read == 0 {
+            break;
+        }
+        line_no += 1;
         let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
+        if trimmed_unsafe.is_empty() || trimmed_unsafe.starts_with('#') || trimmed_unsafe.starts_with("//") {
             continue;
         }
 
         if delimiter == Delimiter::Auto {
-            delimiter = Delimiter::detect(trimmed);
+            delimiter = Delimiter::detect(trimmed_unsafe);
         }
-        let fields = delimiter.split(trimmed);
+        delimiter.split_into(trimmed_unsafe, &mut fields);
         if fields.is_empty() {
             continue;
         }

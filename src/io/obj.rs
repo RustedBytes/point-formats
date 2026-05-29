@@ -10,18 +10,28 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<Geometry> {
     let mut faces: Vec<Face> = Vec::new();
     let mut comments = Vec::new();
 
-    for (line_idx, line) in reader.lines().enumerate() {
-        let line_no = line_idx + 1;
-        let line = line?;
+    let mut line = String::new();
+    let mut parts = Vec::new();
+    let mut line_no = 0;
+
+    loop {
+        parts.clear();
+        line.clear();
+        let bytes_read = reader.read_line(&mut line)?;
+        if bytes_read == 0 {
+            break;
+        }
+        line_no += 1;
         let trimmed = line.trim();
-        if trimmed.is_empty() {
+        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
+        if trimmed_unsafe.is_empty() {
             continue;
         }
-        if trimmed.starts_with('#') {
-            comments.push(trimmed.trim_start_matches('#').trim().to_string());
+        if trimmed_unsafe.starts_with('#') {
+            comments.push(trimmed_unsafe.trim_start_matches('#').trim().to_string());
             continue;
         }
-        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        parts.extend(trimmed_unsafe.split_whitespace());
         match parts.first().copied() {
             Some("v") => vertices.push(parse_vertex(line_no, &parts[1..])?),
             Some("vn") => normals.push(parse_normal(line_no, &parts[1..])?),

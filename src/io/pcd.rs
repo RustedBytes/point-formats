@@ -267,9 +267,13 @@ fn read_ascii_points<R: BufRead>(
     specs: &[FieldSpec],
     cloud: &mut PointCloud,
 ) -> Result<()> {
-    let values_per_point: usize = specs.iter().map(|spec| spec.count).sum();
+    let (layout, flat_fields) = PcdLayout::from_specs(specs);
+    let values_per_point = flat_fields.len();
+    let mut line = String::new();
+    let mut values = Vec::new();
     for row in 0..header.points {
-        let mut line = String::new();
+        values.clear();
+        line.clear();
         if reader.read_line(&mut line)? == 0 {
             return Err(Error::parse(
                 Format::Pcd,
@@ -277,7 +281,9 @@ fn read_ascii_points<R: BufRead>(
                 format!("unexpected EOF while reading point {row}"),
             ));
         }
-        let values: Vec<&str> = line.split_whitespace().collect();
+        let trimmed = line.trim();
+        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
+        values.extend(trimmed_unsafe.split_whitespace());
         if values.len() < values_per_point {
             return Err(Error::parse(
                 Format::Pcd,
@@ -288,7 +294,12 @@ fn read_ascii_points<R: BufRead>(
                 ),
             ));
         }
-        cloud.points.push(point_from_ascii(specs, &values)?);
+        let get_scalar = |idx: usize| -> Result<Scalar> {
+            let field = &flat_fields[idx];
+            let val_str = values[idx];
+            parse_scalar_text_field(field, val_str)
+        };
+        cloud.points.push(point_from_scalars(&layout, get_scalar)?);
     }
     Ok(())
 }
@@ -300,49 +311,74 @@ fn read_binary_points<R: Read>(
     cloud: &mut PointCloud,
 ) -> Result<()> {
     let step = header.point_step()?;
+    let (layout, flat_fields) = PcdLayout::from_specs(specs);
     let mut buffer = vec![0_u8; step];
     for _ in 0..header.points {
         reader.read_exact(&mut buffer)?;
-        cloud.points.push(point_from_binary(specs, &buffer)?);
+        let get_scalar = |idx: usize| -> Result<Scalar> {
+            let field = &flat_fields[idx];
+            parse_scalar_bytes_field(field, &buffer)
+        };
+        cloud.points.push(point_from_scalars(&layout, get_scalar)?);
     }
     Ok(())
 }
 
-fn point_from_ascii(specs: &[FieldSpec], values: &[&str]) -> Result<Point> {
-    let mut index = 0usize;
-    let mut scalars: Vec<(String, Scalar)> = Vec::new();
-    for spec in specs {
-        for count_idx in 0..spec.count {
-            let name = if spec.count == 1 {
-                spec.name.clone()
-            } else {
-                format!("{}_{count_idx}", spec.name)
-            };
-            let value = values.get(index).ok_or_else(|| {
-                Error::parse(Format::Pcd, None, format!("missing value for field {name}"))
-            })?;
-            scalars.push((name, parse_scalar_text(spec, value)?));
-            index += 1;
-        }
-    }
-    point_from_scalars(&scalars)
+#[derive(Debug, Clone, Default)]
+struct PcdLayout {
+    x_idx: Option<usize>,
+    y_idx: Option<usize>,
+    z_idx: Option<usize>,
+    intensity_idx: Option<usize>,
+    rgb_idx: Option<usize>,
+    red_idx: Option<usize>,
+    green_idx: Option<usize>,
+    blue_idx: Option<usize>,
+    classification_idx: Option<usize>,
+    nx_idx: Option<usize>,
+    ny_idx: Option<usize>,
+    nz_idx: Option<usize>,
 }
 
-fn point_from_binary(specs: &[FieldSpec], bytes: &[u8]) -> Result<Point> {
-    let mut scalars: Vec<(String, Scalar)> = Vec::new();
-    for spec in specs {
-        for count_idx in 0..spec.count {
-            let offset = spec.offset + count_idx * spec.size;
-            let end = offset + spec.size;
-            let name = if spec.count == 1 {
-                spec.name.clone()
-            } else {
-                format!("{}_{count_idx}", spec.name)
-            };
-            scalars.push((name, parse_scalar_bytes(spec, &bytes[offset..end])?));
+#[derive(Debug, Clone, Copy)]
+struct FlatField {
+    kind: char,
+    size: usize,
+    offset: usize,
+}
+
+impl PcdLayout {
+    fn from_specs(specs: &[FieldSpec]) -> (Self, Vec<FlatField>) {
+        let mut layout = Self::default();
+        let mut flat_fields = Vec::new();
+        let mut scalar_idx = 0;
+        for spec in specs {
+            for count_idx in 0..spec.count {
+                flat_fields.push(FlatField {
+                    kind: spec.ty,
+                    size: spec.size,
+                    offset: spec.offset + count_idx * spec.size,
+                });
+                match (spec.name.to_ascii_lowercase().as_str(), count_idx) {
+                    ("x", 0) => layout.x_idx = Some(scalar_idx),
+                    ("y", 0) => layout.y_idx = Some(scalar_idx),
+                    ("z", 0) => layout.z_idx = Some(scalar_idx),
+                    ("intensity" | "i", 0) => layout.intensity_idx = Some(scalar_idx),
+                    ("rgb" | "rgba", 0) => layout.rgb_idx = Some(scalar_idx),
+                    ("red" | "r", 0) => layout.red_idx = Some(scalar_idx),
+                    ("green" | "g", 0) => layout.green_idx = Some(scalar_idx),
+                    ("blue" | "b", 0) => layout.blue_idx = Some(scalar_idx),
+                    ("classification" | "class" | "label", 0) => layout.classification_idx = Some(scalar_idx),
+                    ("normal_x" | "nx", 0) => layout.nx_idx = Some(scalar_idx),
+                    ("normal_y" | "ny", 0) => layout.ny_idx = Some(scalar_idx),
+                    ("normal_z" | "nz", 0) => layout.nz_idx = Some(scalar_idx),
+                    _ => {}
+                }
+                scalar_idx += 1;
+            }
         }
+        (layout, flat_fields)
     }
-    point_from_scalars(&scalars)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -353,6 +389,7 @@ enum Scalar {
 }
 
 impl Scalar {
+    #[inline]
     fn as_f64(self) -> f64 {
         match self {
             Self::Float(v) => v,
@@ -361,6 +398,7 @@ impl Scalar {
         }
     }
 
+    #[inline]
     fn as_u64(self) -> Option<u64> {
         match self {
             Self::Unsigned(v) => Some(v),
@@ -371,51 +409,33 @@ impl Scalar {
     }
 }
 
-fn point_from_scalars(scalars: &[(String, Scalar)]) -> Result<Point> {
-    fn find(scalars: &[(String, Scalar)], names: &[&str]) -> Option<Scalar> {
-        scalars
-            .iter()
-            .find(|(name, _)| {
-                names
-                    .iter()
-                    .any(|candidate| name.eq_ignore_ascii_case(candidate))
-            })
-            .map(|(_, value)| *value)
-    }
-
-    let x = find(scalars, &["x"])
-        .ok_or_else(|| Error::parse(Format::Pcd, None, "missing x"))?
-        .as_f64();
-    let y = find(scalars, &["y"])
-        .ok_or_else(|| Error::parse(Format::Pcd, None, "missing y"))?
-        .as_f64();
-    let z = find(scalars, &["z"])
-        .ok_or_else(|| Error::parse(Format::Pcd, None, "missing z"))?
-        .as_f64();
+fn point_from_scalars(
+    layout: &PcdLayout,
+    get_scalar: impl Fn(usize) -> Result<Scalar>,
+) -> Result<Point> {
+    let x = get_scalar(layout.x_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing x"))?)?.as_f64();
+    let y = get_scalar(layout.y_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing y"))?)?.as_f64();
+    let z = get_scalar(layout.z_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing z"))?)?.as_f64();
     let mut point = Point::new(x, y, z);
 
-    if let Some(intensity) = find(scalars, &["intensity", "i"]) {
-        point.intensity = Some(intensity.as_f64() as f32);
+    if let Some(intensity_idx) = layout.intensity_idx {
+        point.intensity = Some(get_scalar(intensity_idx)?.as_f64() as f32);
     }
 
-    let rgb = find(scalars, &["rgb", "rgba"]);
-    let explicit_color = (
-        find(scalars, &["red", "r"]),
-        find(scalars, &["green", "g"]),
-        find(scalars, &["blue", "b"]),
-    );
-    if let Some(rgb) = rgb {
-        point.color = Some(decode_rgb(rgb));
-    } else if let (Some(red), Some(green), Some(blue)) = explicit_color {
+    let rgb = layout.rgb_idx;
+    let explicit_color = (layout.red_idx, layout.green_idx, layout.blue_idx);
+    if let Some(rgb_idx) = rgb {
+        point.color = Some(decode_rgb(get_scalar(rgb_idx)?));
+    } else if let (Some(r_idx), Some(g_idx), Some(b_idx)) = explicit_color {
         point.color = Some(Color::new(
-            scalar_to_u16(red, "red")?,
-            scalar_to_u16(green, "green")?,
-            scalar_to_u16(blue, "blue")?,
+            scalar_to_u16(get_scalar(r_idx)?, "red")?,
+            scalar_to_u16(get_scalar(g_idx)?, "green")?,
+            scalar_to_u16(get_scalar(b_idx)?, "blue")?,
         ));
     }
 
-    if let Some(classification) = find(scalars, &["classification", "class", "label"]) {
-        let value = classification.as_u64().ok_or_else(|| {
+    if let Some(class_idx) = layout.classification_idx {
+        let value = get_scalar(class_idx)?.as_u64().ok_or_else(|| {
             Error::parse(
                 Format::Pcd,
                 None,
@@ -432,20 +452,19 @@ fn point_from_scalars(scalars: &[(String, Scalar)]) -> Result<Point> {
         point.classification = Some(value as u8);
     }
 
-    let normal = (
-        find(scalars, &["normal_x", "nx"]),
-        find(scalars, &["normal_y", "ny"]),
-        find(scalars, &["normal_z", "nz"]),
-    );
-    if let (Some(nx), Some(ny), Some(nz)) = normal {
-        point.normal = Some(Vec3::new(nx.as_f64(), ny.as_f64(), nz.as_f64()));
+    if let (Some(nx_idx), Some(ny_idx), Some(nz_idx)) = (layout.nx_idx, layout.ny_idx, layout.nz_idx) {
+        point.normal = Some(Vec3::new(
+            get_scalar(nx_idx)?.as_f64(),
+            get_scalar(ny_idx)?.as_f64(),
+            get_scalar(nz_idx)?.as_f64(),
+        ));
     }
 
     Ok(point)
 }
 
-fn parse_scalar_text(spec: &FieldSpec, value: &str) -> Result<Scalar> {
-    match spec.ty {
+fn parse_scalar_text_field(field: &FlatField, value: &str) -> Result<Scalar> {
+    match field.kind {
         'F' => Ok(Scalar::Float(value.parse::<f64>().map_err(|_| {
             Error::parse(Format::Pcd, None, format!("invalid float '{value}'"))
         })?)),
@@ -467,25 +486,34 @@ fn parse_scalar_text(spec: &FieldSpec, value: &str) -> Result<Scalar> {
     }
 }
 
-fn parse_scalar_bytes(spec: &FieldSpec, bytes: &[u8]) -> Result<Scalar> {
-    Ok(match (spec.ty, spec.size) {
-        ('F', 4) => Scalar::Float(f32::from_le_bytes(array(bytes)?) as f64),
-        ('F', 8) => Scalar::Float(f64::from_le_bytes(array(bytes)?)),
-        ('U', 1) => Scalar::Unsigned(bytes[0] as u64),
-        ('U', 2) => Scalar::Unsigned(u16::from_le_bytes(array(bytes)?) as u64),
-        ('U', 4) => Scalar::Unsigned(u32::from_le_bytes(array(bytes)?) as u64),
-        ('U', 8) => Scalar::Unsigned(u64::from_le_bytes(array(bytes)?)),
-        ('I', 1) => Scalar::Signed(bytes[0] as i8 as i64),
-        ('I', 2) => Scalar::Signed(i16::from_le_bytes(array(bytes)?) as i64),
-        ('I', 4) => Scalar::Signed(i32::from_le_bytes(array(bytes)?) as i64),
-        ('I', 8) => Scalar::Signed(i64::from_le_bytes(array(bytes)?)),
+fn parse_scalar_bytes_field(field: &FlatField, bytes: &[u8]) -> Result<Scalar> {
+    let offset = field.offset;
+    let end = offset + field.size;
+    let field_bytes = bytes.get(offset..end).ok_or_else(|| {
+        Error::parse(
+            Format::Pcd,
+            None,
+            format!("slice bounds out of range for binary field of size {}", field.size),
+        )
+    })?;
+    Ok(match (field.kind, field.size) {
+        ('F', 4) => Scalar::Float(f32::from_le_bytes(array(field_bytes)?) as f64),
+        ('F', 8) => Scalar::Float(f64::from_le_bytes(array(field_bytes)?)),
+        ('U', 1) => Scalar::Unsigned(field_bytes[0] as u64),
+        ('U', 2) => Scalar::Unsigned(u16::from_le_bytes(array(field_bytes)?) as u64),
+        ('U', 4) => Scalar::Unsigned(u32::from_le_bytes(array(field_bytes)?) as u64),
+        ('U', 8) => Scalar::Unsigned(u64::from_le_bytes(array(field_bytes)?)),
+        ('I', 1) => Scalar::Signed(field_bytes[0] as i8 as i64),
+        ('I', 2) => Scalar::Signed(i16::from_le_bytes(array(field_bytes)?) as i64),
+        ('I', 4) => Scalar::Signed(i32::from_le_bytes(array(field_bytes)?) as i64),
+        ('I', 8) => Scalar::Signed(i64::from_le_bytes(array(field_bytes)?)),
         _ => {
             return Err(Error::parse(
                 Format::Pcd,
                 None,
                 format!(
                     "unsupported field TYPE/SIZE combination {}{}",
-                    spec.ty, spec.size
+                    field.kind, field.size
                 ),
             ))
         }

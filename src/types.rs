@@ -16,19 +16,23 @@ impl Vec3 {
         z: 0.0,
     };
 
+    #[inline]
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
 
+    #[inline]
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
     }
 
+    #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn sub(self, other: Self) -> Self {
         Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 
+    #[inline]
     pub fn cross(self, other: Self) -> Self {
         Self::new(
             self.y * other.z - self.z * other.y,
@@ -37,14 +41,17 @@ impl Vec3 {
         )
     }
 
+    #[inline]
     pub fn dot(self, other: Self) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
+    #[inline]
     pub fn norm(self) -> f64 {
         self.dot(self).sqrt()
     }
 
+    #[inline]
     pub fn normalized(self) -> Option<Self> {
         let norm = self.norm();
         if norm == 0.0 || !norm.is_finite() {
@@ -65,10 +72,12 @@ pub struct Color {
 }
 
 impl Color {
+    #[inline]
     pub const fn new(red: u16, green: u16, blue: u16) -> Self {
         Self { red, green, blue }
     }
 
+    #[inline]
     pub const fn from_u8(red: u8, green: u8, blue: u8) -> Self {
         Self {
             red: red as u16,
@@ -77,6 +86,7 @@ impl Color {
         }
     }
 
+    #[inline]
     pub fn to_u8_lossy(self) -> [u8; 3] {
         [
             self.red.min(255) as u8,
@@ -85,6 +95,7 @@ impl Color {
         ]
     }
 
+    #[inline]
     pub fn to_unit_rgb(self) -> [f64; 3] {
         [
             self.red as f64 / u16::MAX as f64,
@@ -93,6 +104,7 @@ impl Color {
         ]
     }
 
+    #[inline]
     pub fn from_unit_rgb(red: f64, green: f64, blue: f64) -> Option<Self> {
         fn component(v: f64) -> Option<u16> {
             if !v.is_finite() || !(0.0..=1.0).contains(&v) {
@@ -134,6 +146,7 @@ pub struct Point {
 }
 
 impl Point {
+    #[inline]
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self {
             position: Vec3::new(x, y, z),
@@ -149,21 +162,25 @@ impl Point {
         }
     }
 
+    #[inline]
     pub fn with_intensity(mut self, intensity: f32) -> Self {
         self.intensity = Some(intensity);
         self
     }
 
+    #[inline]
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = Some(color);
         self
     }
 
+    #[inline]
     pub fn with_classification(mut self, classification: u8) -> Self {
         self.classification = Some(classification);
         self
     }
 
+    #[inline]
     pub fn with_normal(mut self, normal: Vec3) -> Self {
         self.normal = Some(normal);
         self
@@ -178,6 +195,7 @@ pub struct Bounds3 {
 }
 
 impl Bounds3 {
+    #[inline]
     pub fn empty() -> Self {
         Self {
             min: Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
@@ -205,6 +223,7 @@ impl Bounds3 {
         any.then_some(bounds)
     }
 
+    #[inline]
     pub fn include(&mut self, p: Vec3) {
         self.min.x = self.min.x.min(p.x);
         self.min.y = self.min.y.min(p.y);
@@ -294,6 +313,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
+    #[inline]
     pub fn new(position: Vec3) -> Self {
         Self {
             position,
@@ -310,6 +330,7 @@ pub struct Face {
 }
 
 impl Face {
+    #[inline]
     pub const fn new(a: usize, b: usize, c: usize) -> Self {
         Self { indices: [a, b, c] }
     }
@@ -324,6 +345,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
+    #[inline]
     pub fn new(vertices: Vec<Vertex>, faces: Vec<Face>) -> Self {
         Self {
             vertices,
@@ -332,6 +354,7 @@ impl Mesh {
         }
     }
 
+    #[inline]
     pub fn bounds(&self) -> Option<Bounds3> {
         Bounds3::from_vertices(&self.vertices)
     }

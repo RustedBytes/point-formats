@@ -53,16 +53,19 @@ pub enum Delimiter {
 }
 
 impl Delimiter {
-    pub(crate) fn split(self, line: &str) -> Vec<&str> {
+    #[inline]
+    pub(crate) fn split_into<'a>(self, line: &'a str, fields: &mut Vec<&'a str>) {
+        fields.clear();
         match self {
-            Self::Auto => Self::detect(line).split(line),
-            Self::Whitespace => line.split_whitespace().collect(),
-            Self::Comma => line.split(',').map(str::trim).collect(),
-            Self::Tab => line.split('\t').map(str::trim).collect(),
-            Self::Semicolon => line.split(';').map(str::trim).collect(),
+            Self::Auto => Self::detect(line).split_into(line, fields),
+            Self::Whitespace => fields.extend(line.split_whitespace()),
+            Self::Comma => fields.extend(line.split(',').map(str::trim)),
+            Self::Tab => fields.extend(line.split('\t').map(str::trim)),
+            Self::Semicolon => fields.extend(line.split(';').map(str::trim)),
         }
     }
 
+    #[inline]
     pub(crate) fn detect(line: &str) -> Self {
         if line.contains(',') {
             Self::Comma
@@ -75,6 +78,7 @@ impl Delimiter {
         }
     }
 
+    #[inline]
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::Auto | Self::Whitespace => " ",
@@ -482,6 +486,7 @@ fn as_cloud_for_point_format(
     }
 }
 
+#[inline]
 pub(crate) fn parse_f64(format: Format, line: usize, name: &str, value: &str) -> Result<f64> {
     value.parse::<f64>().map_err(|_| {
         Error::parse(
@@ -492,6 +497,7 @@ pub(crate) fn parse_f64(format: Format, line: usize, name: &str, value: &str) ->
     })
 }
 
+#[inline]
 pub(crate) fn parse_f32(format: Format, line: usize, name: &str, value: &str) -> Result<f32> {
     value.parse::<f32>().map_err(|_| {
         Error::parse(
@@ -502,6 +508,7 @@ pub(crate) fn parse_f32(format: Format, line: usize, name: &str, value: &str) ->
     })
 }
 
+#[inline]
 pub(crate) fn parse_u8(format: Format, line: usize, name: &str, value: &str) -> Result<u8> {
     if let Ok(v) = value.parse::<u8>() {
         return Ok(v);
@@ -518,6 +525,7 @@ pub(crate) fn parse_u8(format: Format, line: usize, name: &str, value: &str) -> 
     }
 }
 
+#[inline]
 pub(crate) fn parse_u16(format: Format, line: usize, name: &str, value: &str) -> Result<u16> {
     if let Ok(v) = value.parse::<u16>() {
         return Ok(v);
@@ -534,6 +542,7 @@ pub(crate) fn parse_u16(format: Format, line: usize, name: &str, value: &str) ->
     }
 }
 
+#[inline]
 pub(crate) fn fmt_f64(value: f64, precision: usize) -> String {
     if value == 0.0 {
         // Avoid writing -0.000000 after transforms/triangulation.
@@ -542,44 +551,53 @@ pub(crate) fn fmt_f64(value: f64, precision: usize) -> String {
     format!("{:.*}", precision, value)
 }
 
+#[inline]
 pub(crate) fn write_f32_le<W: std::io::Write>(writer: &mut W, value: f32) -> Result<()> {
     writer.write_all(&value.to_le_bytes())?;
     Ok(())
 }
 
+#[inline]
 pub(crate) fn write_f64_le<W: std::io::Write>(writer: &mut W, value: f64) -> Result<()> {
     writer.write_all(&value.to_le_bytes())?;
     Ok(())
 }
 
+#[inline]
 pub(crate) fn write_u16_le<W: std::io::Write>(writer: &mut W, value: u16) -> Result<()> {
     writer.write_all(&value.to_le_bytes())?;
     Ok(())
 }
 
+#[inline]
 pub(crate) fn write_u32_le<W: std::io::Write>(writer: &mut W, value: u32) -> Result<()> {
     writer.write_all(&value.to_le_bytes())?;
     Ok(())
 }
 
+#[inline]
 pub(crate) fn read_exact<const N: usize, R: std::io::Read>(reader: &mut R) -> Result<[u8; N]> {
     let mut bytes = [0_u8; N];
     reader.read_exact(&mut bytes)?;
     Ok(bytes)
 }
 
+#[inline]
 pub(crate) fn read_f32_le<R: std::io::Read>(reader: &mut R) -> Result<f32> {
     Ok(f32::from_le_bytes(read_exact(reader)?))
 }
 
+#[inline]
 pub(crate) fn read_f64_le<R: std::io::Read>(reader: &mut R) -> Result<f64> {
     Ok(f64::from_le_bytes(read_exact(reader)?))
 }
 
+#[inline]
 pub(crate) fn read_u16_le<R: std::io::Read>(reader: &mut R) -> Result<u16> {
     Ok(u16::from_le_bytes(read_exact(reader)?))
 }
 
+#[inline]
 pub(crate) fn read_u32_le<R: std::io::Read>(reader: &mut R) -> Result<u32> {
     Ok(u32::from_le_bytes(read_exact(reader)?))
 }
