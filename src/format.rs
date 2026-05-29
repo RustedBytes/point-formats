@@ -125,6 +125,8 @@ impl Format {
             "dxf" => Some(Self::Dxf),
             "dwg" => Some(Self::Dwg),
             "pcap" | "pcapng" => Some(Self::Pcap),
+            "udp" | "udppackets" => Some(Self::UdpPackets),
+            "raw" | "vendorraw" => Some(Self::VendorRaw),
             "bag" => Some(Self::RosBag),
             "db3" => Some(Self::Ros2Bag),
             "pc2" | "pointcloud2" => Some(Self::PointCloud2),
@@ -235,6 +237,9 @@ impl Format {
             Self::Gpkg => FormatSupport::NativeReadWrite,
             #[cfg(feature = "robotics")]
             Self::RosBag | Self::Ros2Bag | Self::PointCloud2 => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "sensor")]
+            Self::Pcap | Self::UdpPackets | Self::VendorRaw => FormatSupport::NativeReadWrite,
+
 
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
@@ -252,6 +257,9 @@ impl Format {
             Self::Gltf | Self::Glb => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "gpkg"))]
             Self::Gpkg => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "sensor"))]
+            Self::Pcap | Self::UdpPackets | Self::VendorRaw => FormatSupport::AdapterRequired,
+
 
             Self::NetCdf
             | Self::Hdf5
@@ -259,9 +267,6 @@ impl Format {
             | Self::Dwg
             | Self::Potree
             | Self::Ept
-            | Self::Pcap
-            | Self::UdpPackets
-            | Self::VendorRaw
             | Self::Rcp
             | Self::Rcs => FormatSupport::AdapterRequired,
 

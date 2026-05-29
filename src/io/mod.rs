@@ -30,6 +30,9 @@ pub mod gltf;
 pub mod gpkg;
 #[cfg(feature = "robotics")]
 pub mod robotics;
+#[cfg(feature = "sensor")]
+pub mod sensor;
+
 
 
 use crate::error::{Error, Result};
@@ -279,6 +282,22 @@ pub fn read_path(
         return robotics::read_pc2(path);
     }
 
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::Pcap) {
+        return sensor::read_pcap(path);
+    }
+
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::UdpPackets) {
+        return sensor::read_udppackets(path);
+    }
+
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::VendorRaw) {
+        return sensor::read_vendorraw(path);
+    }
+
+
 
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
@@ -374,6 +393,25 @@ pub fn write_path(
         let cloud = as_cloud_for_point_format(geometry, format)?;
         return robotics::write_pc2(path, cloud);
     }
+
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::Pcap) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return sensor::write_pcap(path, cloud);
+    }
+
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::UdpPackets) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return sensor::write_udppackets(path, cloud);
+    }
+
+    #[cfg(feature = "sensor")]
+    if matches!(format, Format::VendorRaw) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return sensor::write_vendorraw(path, cloud);
+    }
+
 
 
     let file = File::create(path)?;

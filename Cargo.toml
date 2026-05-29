@@ -32,6 +32,8 @@ dxf = ["dep:dxf"]
 shapefile = ["dep:shapefile", "dep:dbase"]
 gltf = ["dep:gltf", "dep:serde_json"]
 gpkg = ["dep:rusqlite"]
+sensor = []
+
 
 [dependencies]
 las = { version = "=0.9.4", optional = true }
