@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::io::{
-    fmt_f64, read_exact, read_f32_le, read_u16_le, read_u32_le, write_f32_le, write_u16_le,
+    fmt_f64, read_f32_le, read_u16_le, read_u32_le, write_f32_le, write_u16_le,
     write_u32_le, StlOptions,
 };
 use crate::types::{Face, Geometry, Mesh, Vec3, Vertex};
@@ -132,7 +132,7 @@ fn read_ascii(text: &str) -> Result<Geometry> {
                     ));
                 }
                 let base = vertices.len();
-                vertices.extend(current_vertices.drain(..));
+                vertices.append(&mut current_vertices);
                 faces.push(Face::new(base, base + 1, base + 2));
             }
             _ => {}

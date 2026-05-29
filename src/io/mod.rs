@@ -26,7 +26,7 @@ pub enum Delimiter {
 }
 
 impl Delimiter {
-    pub(crate) fn split<'a>(self, line: &'a str) -> Vec<&'a str> {
+    pub(crate) fn split(self, line: &str) -> Vec<&str> {
         match self {
             Self::Auto => Self::detect(line).split(line),
             Self::Whitespace => line.split_whitespace().collect(),
@@ -280,10 +280,10 @@ pub fn write_path(
     }
 }
 
-fn as_cloud_for_point_format<'a>(
-    geometry: &'a Geometry,
+fn as_cloud_for_point_format(
+    geometry: &Geometry,
     format: Format,
-) -> Result<&'a crate::types::PointCloud> {
+) -> Result<&crate::types::PointCloud> {
     match geometry {
         Geometry::PointCloud(cloud) => Ok(cloud),
         Geometry::Mesh(_) => Err(Error::LossyConversionBlocked {

@@ -217,6 +217,7 @@ impl Bounds3 {
 /// Metadata shared by point clouds and meshes. The crate stores CRS and scanner
 /// transforms but does not invent them for formats that do not carry them.
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct Metadata {
     pub source_format: Option<Format>,
     pub point_count_hint: Option<usize>,
@@ -227,19 +228,6 @@ pub struct Metadata {
     pub attributes: BTreeMap<String, AttributeValue>,
 }
 
-impl Default for Metadata {
-    fn default() -> Self {
-        Self {
-            source_format: None,
-            point_count_hint: None,
-            crs_wkt: None,
-            scanner_transform: None,
-            comments: Vec::new(),
-            warnings: Vec::new(),
-            attributes: BTreeMap::new(),
-        }
-    }
-}
 
 /// Owned point cloud. Suitable for moderate-size conversion and tests. Large
 /// production LAS/COPC/E57 adapters should implement streaming codecs using the
