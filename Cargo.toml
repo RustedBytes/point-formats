@@ -5,6 +5,7 @@ edition = "2021"
 rust-version = "1.74"
 authors = ["Yehor Smoliakov <egorsmkv@gmail.com>"]
 license = "MIT"
+repository = "https://github.com/RustedBytes/lidar-format-convert"
 description = "Dependency-light LiDAR/point-cloud/mesh format conversion crate with explicit adapters for heavyweight formats."
 keywords = ["lidar", "point-cloud", "ply", "pcd", "las"]
 categories = ["science::geo", "encoding", "command-line-utilities"]
