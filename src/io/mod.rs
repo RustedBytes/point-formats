@@ -8,6 +8,13 @@ pub mod pts;
 pub mod ptx;
 pub mod stl;
 
+#[cfg(feature = "las")]
+pub mod las;
+#[cfg(feature = "copc")]
+pub mod copc;
+#[cfg(feature = "e57")]
+pub mod e57;
+
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::types::Geometry;
@@ -241,6 +248,16 @@ pub fn read_path(
         Format::Pcd => pcd::read(&mut reader),
         Format::Obj => obj::read(&mut reader),
         Format::Stl => stl::read(&mut reader),
+        
+        #[cfg(feature = "las")]
+        Format::Las | Format::Laz => las::read(reader),
+        
+        #[cfg(feature = "copc")]
+        Format::Copc => copc::read(&mut reader),
+        
+        #[cfg(feature = "e57")]
+        Format::E57 => e57::read(&mut reader),
+
         _ => Err(Error::unsupported(format, "read", format.adapter_hint())),
     }
 }
@@ -252,6 +269,13 @@ pub fn write_path(
     options: &NativeOptions,
 ) -> Result<()> {
     let path = path.as_ref();
+
+    #[cfg(feature = "e57")]
+    if matches!(format, Format::E57) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return e57::write_to_path(path, cloud);
+    }
+
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
     match format {
@@ -276,6 +300,13 @@ pub fn write_path(
         ),
         Format::Obj => obj::write(&mut writer, geometry),
         Format::Stl => stl::write(&mut writer, geometry, &options.stl),
+        
+        #[cfg(feature = "las")]
+        Format::Las | Format::Laz => {
+            let cloud = as_cloud_for_point_format(geometry, format)?;
+            las::write(writer, cloud)
+        }
+
         _ => Err(Error::unsupported(format, "write", format.adapter_hint())),
     }
 }

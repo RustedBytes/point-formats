@@ -24,6 +24,7 @@ impl Vec3 {
         self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, other: Self) -> Self {
         Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }

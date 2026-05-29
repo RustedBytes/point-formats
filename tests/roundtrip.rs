@@ -35,9 +35,11 @@ fn detects_compound_extensions() {
 #[test]
 fn csv_header_roundtrip() {
     let mut bytes = Vec::new();
-    let mut options = io::DelimitedOptions::default();
-    options.write_header = true;
-    options.delimiter = io::Delimiter::Comma;
+    let options = io::DelimitedOptions {
+        write_header: true,
+        delimiter: io::Delimiter::Comma,
+        ..Default::default()
+    };
     io::delimited::write(&mut bytes, Format::Csv, &sample_cloud(), &options).unwrap();
 
     let mut cursor = Cursor::new(bytes);
@@ -145,6 +147,220 @@ fn convert_xyz_to_ply_file() {
     assert_eq!(report.output_format, Format::Ply);
     assert_eq!(report.points_written, 2);
     assert!(output.exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "las")]
+fn las_roundtrip_point_cloud() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.xyz");
+    let middle = dir.join("scan.las");
+    let output = dir.join("scan.ply");
+    fs::write(&input, "1.25 2.5 -3.75\n4.0 5.0 6.0\n").unwrap();
+
+    let report1 = convert_path(&input, &middle, &ConvertOptions::default()).unwrap();
+    assert_eq!(report1.input_format, Format::Xyz);
+    assert_eq!(report1.output_format, Format::Las);
+    assert_eq!(report1.points_written, 2);
+    assert!(middle.exists());
+
+    let report2 = convert_path(&middle, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report2.input_format, Format::Las);
+    assert_eq!(report2.output_format, Format::Ply);
+    assert_eq!(report2.points_written, 2);
+    assert!(output.exists());
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "laz")]
+fn laz_roundtrip_point_cloud() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.xyz");
+    let middle = dir.join("scan.laz");
+    let output = dir.join("scan.ply");
+    fs::write(&input, "1.25 2.5 -3.75\n4.0 5.0 6.0\n").unwrap();
+
+    let report1 = convert_path(&input, &middle, &ConvertOptions::default()).unwrap();
+    assert_eq!(report1.input_format, Format::Xyz);
+    assert_eq!(report1.output_format, Format::Laz);
+    assert_eq!(report1.points_written, 2);
+    assert!(middle.exists());
+
+    let report2 = convert_path(&middle, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report2.input_format, Format::Laz);
+    assert_eq!(report2.output_format, Format::Ply);
+    assert_eq!(report2.points_written, 2);
+    assert!(output.exists());
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "e57")]
+fn e57_roundtrip_point_cloud() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.xyz");
+    let middle = dir.join("scan.e57");
+    let output = dir.join("scan.ply");
+    fs::write(&input, "1.25 2.5 -3.75\n4.0 5.0 6.0\n").unwrap();
+
+    let report1 = convert_path(&input, &middle, &ConvertOptions::default()).unwrap();
+    assert_eq!(report1.input_format, Format::Xyz);
+    assert_eq!(report1.output_format, Format::E57);
+    assert_eq!(report1.points_written, 2);
+    assert!(middle.exists());
+
+    let report2 = convert_path(&middle, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report2.input_format, Format::E57);
+    assert_eq!(report2.output_format, Format::Ply);
+    assert_eq!(report2.points_written, 2);
+    assert!(output.exists());
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+fn sample_las_cloud() -> PointCloud {
+    let mut p1 = Point::new(1.25, 2.5, -3.75)
+        .with_intensity(42.0)
+        .with_color(Color::new(1000, 2000, 3000))
+        .with_classification(2);
+    p1.return_number = Some(1);
+    p1.number_of_returns = Some(2);
+    p1.gps_time = Some(123456.789);
+    p1.scan_angle = Some(-15.0);
+
+    let mut p2 = Point::new(4.0, 5.0, 6.0)
+        .with_intensity(7.0)
+        .with_color(Color::new(10, 20, 30))
+        .with_classification(5);
+    p2.return_number = Some(2);
+    p2.number_of_returns = Some(2);
+    p2.gps_time = Some(123457.0);
+    p2.scan_angle = Some(10.0);
+
+    PointCloud::new(vec![p1, p2])
+}
+
+#[test]
+#[cfg(feature = "las")]
+fn las_attributes_roundtrip() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.las");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Las, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Las, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.color, p_dec.color);
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert_eq!(p_orig.return_number, p_dec.return_number);
+            assert_eq!(p_orig.number_of_returns, p_dec.number_of_returns);
+            assert_eq!(p_orig.gps_time, p_dec.gps_time);
+            assert_eq!(p_orig.scan_angle, p_dec.scan_angle);
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "laz")]
+fn laz_attributes_roundtrip() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.laz");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Laz, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Laz, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.color, p_dec.color);
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert_eq!(p_orig.return_number, p_dec.return_number);
+            assert_eq!(p_orig.number_of_returns, p_dec.number_of_returns);
+            assert_eq!(p_orig.gps_time, p_dec.gps_time);
+            assert_eq!(p_orig.scan_angle, p_dec.scan_angle);
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "e57")]
+fn e57_attributes_roundtrip() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.e57");
+
+    let mut original = sample_cloud();
+    original.metadata.crs_wkt = Some("GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]".to_string());
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::E57, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::E57, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        assert_eq!(decoded.metadata.crs_wkt, original.metadata.crs_wkt);
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                println!("E57 Intensity: original = {}, decoded = {}", i1, i2);
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            // E57 colors are saved as 8-bit integers internally when we mapped it (color.red >> 8)
+            // So we verify that they are within 1 byte precision (approximate)
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
     let _ = fs::remove_dir_all(&dir);
 }
 

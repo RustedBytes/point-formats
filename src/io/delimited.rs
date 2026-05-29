@@ -285,6 +285,7 @@ fn looks_like_point_line(
     })
 }
 
+#[allow(dead_code)]
 pub(crate) fn cloud_with_format(mut cloud: PointCloud, format: Format) -> PointCloud {
     if cloud.metadata == Metadata::default() {
         cloud.metadata.source_format = Some(format);

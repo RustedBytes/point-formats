@@ -214,11 +214,22 @@ impl Format {
             | Self::Ptx
             | Self::Obj
             | Self::Stl => FormatSupport::NativeReadWrite,
-            Self::Las
-            | Self::Laz
-            | Self::Copc
-            | Self::E57
-            | Self::GeoTiff
+
+            #[cfg(feature = "las")]
+            Self::Las | Self::Laz => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "copc")]
+            Self::Copc => FormatSupport::NativeReadOnly,
+            #[cfg(feature = "e57")]
+            Self::E57 => FormatSupport::NativeReadWrite,
+
+            #[cfg(not(feature = "las"))]
+            Self::Las | Self::Laz => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "copc"))]
+            Self::Copc => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "e57"))]
+            Self::E57 => FormatSupport::AdapterRequired,
+
+            Self::GeoTiff
             | Self::Cog
             | Self::AsciiGrid
             | Self::NetCdf
