@@ -9,10 +9,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Usage: cargo run --example convert <input_file> <output_file> [--allow-lossy]");
         std::process::exit(1);
     }
-    
+
     let input_path_str = &args[1];
     let output_path_str = &args[2];
-    
+
     let input_path = Path::new(input_path_str);
     if !input_path.exists() {
         eprintln!("Error: Input file not found at '{}'", input_path_str);
@@ -29,7 +29,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    println!("Converting '{}' to '{}'...", input_path_str, output_path_str);
+    println!(
+        "Converting '{}' to '{}'...",
+        input_path_str, output_path_str
+    );
     let start_time = Instant::now();
     let report = match convert_path(input_path, Path::new(output_path_str), &options) {
         Ok(rep) => rep,

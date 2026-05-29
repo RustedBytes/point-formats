@@ -1,7 +1,7 @@
+use e57::{CartesianCoordinate, E57Reader};
 use std::env;
 use std::fs::File;
 use std::path::Path;
-use e57::{CartesianCoordinate, E57Reader};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Usage: cargo run --example check_e57 <file.e57>");
         std::process::exit(1);
     }
-    
+
     let path_str = &args[1];
     let path = Path::new(path_str);
     if !path.exists() {
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = E57Reader::new(file)?;
     println!("Successfully parsed E57 file: {}", path_str);
-    
+
     if let Some(crs) = reader.coordinate_metadata() {
         println!("Coordinate Reference System (CRS):");
         println!("  {}", crs.trim());
@@ -44,7 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if let Some(bounds) = &pc.cartesian_bounds {
             println!("  Cartesian Bounds:");
-            let format_bound = |val: Option<f64>| val.map_or("N/A".to_string(), |v| format!("{:.4}", v));
+            let format_bound =
+                |val: Option<f64>| val.map_or("N/A".to_string(), |v| format!("{:.4}", v));
             println!(
                 "    X: [{}, {}]",
                 format_bound(bounds.x_min),
@@ -70,7 +71,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             println!(
                 "    Rotation (Quat): [w: {:.4}, x: {:.4}, y: {:.4}, z: {:.4}]",
-                transform.rotation.w, transform.rotation.x, transform.rotation.y, transform.rotation.z
+                transform.rotation.w,
+                transform.rotation.x,
+                transform.rotation.y,
+                transform.rotation.z
             );
         }
 
@@ -80,9 +84,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Sample Points (first {}):", limit);
             let mut pc_reader = reader.pointcloud_simple(pc)?;
             pc_reader.normalize_intensity(false);
-            
-            println!("    {:^5} | {:^10} | {:^10} | {:^10} | {:^9} | {:^15}", "Index", "X", "Y", "Z", "Intensity", "Color (R,G,B)");
-            println!("    ------|------------|------------|------------|-----------|----------------");
+
+            println!(
+                "    {:^5} | {:^10} | {:^10} | {:^10} | {:^9} | {:^15}",
+                "Index", "X", "Y", "Z", "Intensity", "Color (R,G,B)"
+            );
+            println!(
+                "    ------|------------|------------|------------|-----------|----------------"
+            );
             for (p_idx, p_res) in pc_reader.take(limit).enumerate() {
                 let p = p_res?;
                 let (x, y, z) = match p.cartesian {
@@ -90,7 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CartesianCoordinate::Direction { x, y, z } => (x, y, z),
                     CartesianCoordinate::Invalid => (0.0, 0.0, 0.0),
                 };
-                let intensity_str = p.intensity.map_or("N/A".to_string(), |i| format!("{:.4}", i));
+                let intensity_str = p
+                    .intensity
+                    .map_or("N/A".to_string(), |i| format!("{:.4}", i));
                 let color_str = p.color.map_or("N/A".to_string(), |c| {
                     format!("({:.2}, {:.2}, {:.2})", c.red, c.green, c.blue)
                 });
@@ -101,6 +112,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }

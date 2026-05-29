@@ -1,7 +1,7 @@
+use copc_rs::{BoundsSelection, CopcReader, LodSelection};
 use std::env;
 use std::fs::File;
 use std::path::Path;
-use copc_rs::{CopcReader, LodSelection, BoundsSelection};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Usage: cargo run --example check_copc <file.copc.laz>");
         std::process::exit(1);
     }
-    
+
     let path_str = &args[1];
     let path = Path::new(path_str);
     if !path.exists() {
@@ -21,16 +21,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = CopcReader::new(file)?;
     println!("Successfully parsed COPC file: {}", path_str);
     println!("------------------------------------------------------------");
-    
+
     // LAS Header
     let header = reader.header();
     println!("LAS Header (COPC Base):");
-    println!("  LAS Version:          {}.{}", header.version().major, header.version().minor);
-    println!("  System Identifier:    {}", header.system_identifier().trim());
-    println!("  Generating Software:  {}", header.generating_software().trim());
+    println!(
+        "  LAS Version:          {}.{}",
+        header.version().major,
+        header.version().minor
+    );
+    println!(
+        "  System Identifier:    {}",
+        header.system_identifier().trim()
+    );
+    println!(
+        "  Generating Software:  {}",
+        header.generating_software().trim()
+    );
     println!("  Point Format ID:      {}", header.point_format().to_u8()?);
     println!("  Declared Point Count: {}", header.number_of_points());
-    
+
     let bounds = header.bounds();
     println!("  COPC Extents/Bounds:");
     println!("    X: [{:.4}, {:.4}]", bounds.min.x, bounds.max.x);
@@ -54,7 +64,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !sample_points.is_empty() {
         println!("\nSample Points from COPC (first {}):", sample_points.len());
-        println!("    {:^5} | {:^10} | {:^10} | {:^10} | {:^9} | {:^15}", "Index", "X", "Y", "Z", "Intensity", "Color (R,G,B)");
+        println!(
+            "    {:^5} | {:^10} | {:^10} | {:^10} | {:^9} | {:^15}",
+            "Index", "X", "Y", "Z", "Intensity", "Color (R,G,B)"
+        );
         println!("    ------|------------|------------|------------|-----------|----------------");
         for (idx, p) in sample_points.iter().enumerate() {
             let color_str = p.color.as_ref().map_or("N/A".to_string(), |c| {
