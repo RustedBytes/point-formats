@@ -59,7 +59,8 @@ pub fn read_rosbag(path: impl AsRef<Path>) -> Result<Geometry> {
             if offset + 4 > header_bytes.len() {
                 break;
             }
-            let field_len = u32::from_le_bytes(header_bytes[offset..offset + 4].try_into().unwrap()) as usize;
+            let field_len =
+                u32::from_le_bytes(header_bytes[offset..offset + 4].try_into().unwrap()) as usize;
             offset += 4;
             if offset + field_len > header_bytes.len() {
                 break;
@@ -92,7 +93,11 @@ pub fn read_rosbag(path: impl AsRef<Path>) -> Result<Geometry> {
         match op {
             Some(0x07) => {
                 if let (Some(c), Some(t)) = (conn, topic) {
-                    if t.contains("point") || t.contains("points") || t.contains("lidar") || target_conn.is_none() {
+                    if t.contains("point")
+                        || t.contains("points")
+                        || t.contains("lidar")
+                        || target_conn.is_none()
+                    {
                         target_conn = Some(c);
                     }
                 }
@@ -151,7 +156,13 @@ pub fn write_rosbag(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
     msg_fields.push(("op", &[0x02][..]));
     msg_fields.push(("conn", &conn_bytes[..]));
     let stamp_sec = cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0) as u32;
-    let stamp_nsec = ((cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0).fract()) * 1e9) as u32;
+    let stamp_nsec = ((cloud
+        .points
+        .first()
+        .and_then(|p| p.gps_time)
+        .unwrap_or(0.0)
+        .fract())
+        * 1e9) as u32;
     let mut time_bytes = [0_u8; 8];
     time_bytes[0..4].copy_from_slice(&stamp_sec.to_le_bytes());
     time_bytes[4..8].copy_from_slice(&stamp_nsec.to_le_bytes());
@@ -172,7 +183,7 @@ pub fn read_ros2bag(path: impl AsRef<Path>) -> Result<Geometry> {
         .prepare("SELECT id FROM topics WHERE type = 'sensor_msgs/msg/PointCloud2' OR type = 'sensor_msgs/PointCloud2'")
         .map_err(|e| Error::invalid(format!("Failed to query topics table: {}", e)))?;
     let mut rows = stmt.query([])?;
-    
+
     let mut topic_id = None;
     if let Some(row) = rows.next()? {
         let tid: i64 = row.get(0)?;
@@ -193,7 +204,8 @@ pub fn read_ros2bag(path: impl AsRef<Path>) -> Result<Geometry> {
         }
     };
 
-    let mut msg_stmt = conn.prepare("SELECT data FROM messages WHERE topic_id = ?1 ORDER BY timestamp")?;
+    let mut msg_stmt =
+        conn.prepare("SELECT data FROM messages WHERE topic_id = ?1 ORDER BY timestamp")?;
     let mut msg_rows = msg_stmt.query(params![tid])?;
 
     let mut points = Vec::new();
@@ -247,7 +259,9 @@ pub fn write_ros2bag(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
         [],
     )?;
 
-    let stamp_ns = cloud.points.first()
+    let stamp_ns = cloud
+        .points
+        .first()
         .and_then(|p| p.gps_time)
         .map(|t| (t * 1_000_000_000.0) as i64)
         .unwrap_or_else(|| {
@@ -267,7 +281,11 @@ pub fn write_ros2bag(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
     Ok(())
 }
 
-fn write_record<W: Write>(writer: &mut W, header: &[(&str, &[u8])], data: &[u8]) -> std::io::Result<()> {
+fn write_record<W: Write>(
+    writer: &mut W,
+    header: &[(&str, &[u8])],
+    data: &[u8],
+) -> std::io::Result<()> {
     let mut header_bytes = Vec::new();
     for &(key, val) in header {
         let field_len = key.len() + 1 + val.len();
@@ -310,7 +328,13 @@ fn serialize_pointcloud2(cloud: &PointCloud) -> Vec<u8> {
     // 1. Header
     buf.extend_from_slice(&0_u32.to_le_bytes()); // seq
     let stamp_sec = cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0) as u32;
-    let stamp_nsec = ((cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0).fract()) * 1e9) as u32;
+    let stamp_nsec = ((cloud
+        .points
+        .first()
+        .and_then(|p| p.gps_time)
+        .unwrap_or(0.0)
+        .fract())
+        * 1e9) as u32;
     buf.extend_from_slice(&stamp_sec.to_le_bytes());
     buf.extend_from_slice(&stamp_nsec.to_le_bytes());
     let frame_id = "map";
@@ -326,11 +350,8 @@ fn serialize_pointcloud2(cloud: &PointCloud) -> Vec<u8> {
     let has_color = cloud.has_color();
     let has_class = cloud.has_classification();
 
-    let mut fields: Vec<(&str, u32, u8, u32)> = vec![
-        ("x", 0, 7, 1),
-        ("y", 4, 7, 1),
-        ("z", 8, 7, 1),
-    ];
+    let mut fields: Vec<(&str, u32, u8, u32)> =
+        vec![("x", 0, 7, 1), ("y", 4, 7, 1), ("z", 8, 7, 1)];
     let mut point_step = 12;
     if has_intensity {
         fields.push(("intensity", 12, 7, 1));
@@ -446,7 +467,12 @@ fn deserialize_pointcloud2(data: &[u8]) -> Result<Vec<Point>> {
         let count = u32::from_le_bytes(data[offset + 5..offset + 9].try_into().unwrap());
         offset += 9;
 
-        fields.push(ParsedField { name, offset: f_offset, datatype, _count: count });
+        fields.push(ParsedField {
+            name,
+            offset: f_offset,
+            datatype,
+            _count: count,
+        });
     }
 
     let is_bigendian = data[offset] != 0;
@@ -464,7 +490,11 @@ fn deserialize_pointcloud2(data: &[u8]) -> Result<Vec<Point>> {
     let point_data = &data[offset..offset + data_len];
     offset += data_len;
 
-    let _is_dense = if offset < data.len() { data[offset] != 0 } else { true };
+    let _is_dense = if offset < data.len() {
+        data[offset] != 0
+    } else {
+        true
+    };
 
     let mut points = Vec::with_capacity(num_points);
     for p_idx in 0..num_points {
@@ -569,7 +599,13 @@ fn serialize_pointcloud2_cdr(cloud: &PointCloud) -> Vec<u8> {
 
     // 1. Header stamp & frame_id
     let stamp_sec = cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0) as i32;
-    let stamp_nsec = ((cloud.points.first().and_then(|p| p.gps_time).unwrap_or(0.0).fract()) * 1e9) as u32;
+    let stamp_nsec = ((cloud
+        .points
+        .first()
+        .and_then(|p| p.gps_time)
+        .unwrap_or(0.0)
+        .fract())
+        * 1e9) as u32;
     s.write_i32(stamp_sec);
     s.write_u32(stamp_nsec);
     s.write_string("map");
@@ -583,11 +619,8 @@ fn serialize_pointcloud2_cdr(cloud: &PointCloud) -> Vec<u8> {
     let has_color = cloud.has_color();
     let has_class = cloud.has_classification();
 
-    let mut fields: Vec<(&str, u32, u8, u32)> = vec![
-        ("x", 0, 7, 1),
-        ("y", 4, 7, 1),
-        ("z", 8, 7, 1),
-    ];
+    let mut fields: Vec<(&str, u32, u8, u32)> =
+        vec![("x", 0, 7, 1), ("y", 4, 7, 1), ("z", 8, 7, 1)];
     let mut point_step = 12;
     if has_intensity {
         fields.push(("intensity", 12, 7, 1));
@@ -711,7 +744,8 @@ impl<'a> CdrDeserializer<'a> {
         if self.offset + len_with_null > self.buf.len() {
             return Err(Error::invalid("CDR read EOF"));
         }
-        let s = String::from_utf8_lossy(&self.buf[self.offset..self.offset + len_with_null - 1]).into_owned();
+        let s = String::from_utf8_lossy(&self.buf[self.offset..self.offset + len_with_null - 1])
+            .into_owned();
         self.offset += len_with_null;
         Ok(s)
     }
@@ -745,7 +779,12 @@ fn deserialize_pointcloud2_cdr(buf: &[u8]) -> Result<Vec<Point>> {
         let offset = d.read_u32()? as usize;
         let datatype = d.read_u8()?;
         let count = d.read_u32()?;
-        fields.push(ParsedField { name, offset, datatype, _count: count });
+        fields.push(ParsedField {
+            name,
+            offset,
+            datatype,
+            _count: count,
+        });
     }
 
     // 4. Config
@@ -821,33 +860,69 @@ fn read_field_val(bytes: &[u8], datatype: u8, is_bigendian: bool) -> Result<f64>
         1 => Ok(bytes[0] as i8 as f64),
         2 => Ok(bytes[0] as f64),
         3 => {
-            if bytes.len() < 2 { return Ok(0.0); }
-            let v = if is_bigendian { i16::from_be_bytes(bytes[0..2].try_into().unwrap()) } else { i16::from_le_bytes(bytes[0..2].try_into().unwrap()) };
+            if bytes.len() < 2 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                i16::from_be_bytes(bytes[0..2].try_into().unwrap())
+            } else {
+                i16::from_le_bytes(bytes[0..2].try_into().unwrap())
+            };
             Ok(v as f64)
         }
         4 => {
-            if bytes.len() < 2 { return Ok(0.0); }
-            let v = if is_bigendian { u16::from_be_bytes(bytes[0..2].try_into().unwrap()) } else { u16::from_le_bytes(bytes[0..2].try_into().unwrap()) };
+            if bytes.len() < 2 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                u16::from_be_bytes(bytes[0..2].try_into().unwrap())
+            } else {
+                u16::from_le_bytes(bytes[0..2].try_into().unwrap())
+            };
             Ok(v as f64)
         }
         5 => {
-            if bytes.len() < 4 { return Ok(0.0); }
-            let v = if is_bigendian { i32::from_be_bytes(bytes[0..4].try_into().unwrap()) } else { i32::from_le_bytes(bytes[0..4].try_into().unwrap()) };
+            if bytes.len() < 4 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                i32::from_be_bytes(bytes[0..4].try_into().unwrap())
+            } else {
+                i32::from_le_bytes(bytes[0..4].try_into().unwrap())
+            };
             Ok(v as f64)
         }
         6 => {
-            if bytes.len() < 4 { return Ok(0.0); }
-            let v = if is_bigendian { u32::from_be_bytes(bytes[0..4].try_into().unwrap()) } else { u32::from_le_bytes(bytes[0..4].try_into().unwrap()) };
+            if bytes.len() < 4 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                u32::from_be_bytes(bytes[0..4].try_into().unwrap())
+            } else {
+                u32::from_le_bytes(bytes[0..4].try_into().unwrap())
+            };
             Ok(v as f64)
         }
         7 => {
-            if bytes.len() < 4 { return Ok(0.0); }
-            let v = if is_bigendian { f32::from_be_bytes(bytes[0..4].try_into().unwrap()) } else { f32::from_le_bytes(bytes[0..4].try_into().unwrap()) };
+            if bytes.len() < 4 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                f32::from_be_bytes(bytes[0..4].try_into().unwrap())
+            } else {
+                f32::from_le_bytes(bytes[0..4].try_into().unwrap())
+            };
             Ok(v as f64)
         }
         8 => {
-            if bytes.len() < 8 { return Ok(0.0); }
-            let v = if is_bigendian { f64::from_be_bytes(bytes[0..8].try_into().unwrap()) } else { f64::from_le_bytes(bytes[0..8].try_into().unwrap()) };
+            if bytes.len() < 8 {
+                return Ok(0.0);
+            }
+            let v = if is_bigendian {
+                f64::from_be_bytes(bytes[0..8].try_into().unwrap())
+            } else {
+                f64::from_le_bytes(bytes[0..8].try_into().unwrap())
+            };
             Ok(v)
         }
         _ => Ok(0.0),

@@ -59,7 +59,12 @@ pub fn write<W: Write>(writer: W, cloud: &PointCloud) -> Result<()> {
             properties.insert("normal_z".to_string(), serde_json::Value::from(n.z));
         }
         if let Some(color) = p.color {
-            let hex = format!("#{:02x}{:02x}{:02x}", color.red >> 8, color.green >> 8, color.blue >> 8);
+            let hex = format!(
+                "#{:02x}{:02x}{:02x}",
+                color.red >> 8,
+                color.green >> 8,
+                color.blue >> 8
+            );
             properties.insert("color".to_string(), serde_json::Value::from(hex));
         }
 
@@ -165,7 +170,9 @@ fn parse_geojson_coords(coords: &[f64]) -> Option<Point> {
 }
 
 fn apply_geojson_properties(point: &mut Point, properties: Option<&geojson::JsonObject>) {
-    let Some(props) = properties else { return; };
+    let Some(props) = properties else {
+        return;
+    };
 
     // Intensity
     if let Some(val) = props.get("intensity") {
@@ -226,7 +233,11 @@ fn apply_geojson_properties(point: &mut Point, properties: Option<&geojson::Json
                 let r = arr[0].as_u64().unwrap_or(0) as u16;
                 let g = arr[1].as_u64().unwrap_or(0) as u16;
                 let b = arr[2].as_u64().unwrap_or(0) as u16;
-                let scale = if r <= 255 && g <= 255 && b <= 255 { 257 } else { 1 };
+                let scale = if r <= 255 && g <= 255 && b <= 255 {
+                    257
+                } else {
+                    1
+                };
                 point.color = Some(Color::new(r * scale, g * scale, b * scale));
             }
         }
@@ -238,7 +249,11 @@ fn apply_geojson_properties(point: &mut Point, properties: Option<&geojson::Json
             let r = r.as_u64().unwrap_or(0) as u16;
             let g = g.as_u64().unwrap_or(0) as u16;
             let b = b.as_u64().unwrap_or(0) as u16;
-            let scale = if r <= 255 && g <= 255 && b <= 255 { 257 } else { 1 };
+            let scale = if r <= 255 && g <= 255 && b <= 255 {
+                257
+            } else {
+                1
+            };
             point.color = Some(Color::new(r * scale, g * scale, b * scale));
         }
     }

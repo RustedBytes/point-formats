@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::types::{Face, Geometry, Mesh, Point, PointCloud, Vec3, Vertex};
-use dxf::entities::{EntityType, ModelPoint, Face3D};
+use dxf::entities::{EntityType, Face3D, ModelPoint};
 use dxf::Drawing;
 use std::io::{Read, Write};
 
@@ -20,10 +20,26 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
                 points.push(Point::new(pt.location.x, pt.location.y, pt.location.z));
             }
             EntityType::Face3D(face) => {
-                let c1 = Vec3::new(face.first_corner.x, face.first_corner.y, face.first_corner.z);
-                let c2 = Vec3::new(face.second_corner.x, face.second_corner.y, face.second_corner.z);
-                let c3 = Vec3::new(face.third_corner.x, face.third_corner.y, face.third_corner.z);
-                let c4 = Vec3::new(face.fourth_corner.x, face.fourth_corner.y, face.fourth_corner.z);
+                let c1 = Vec3::new(
+                    face.first_corner.x,
+                    face.first_corner.y,
+                    face.first_corner.z,
+                );
+                let c2 = Vec3::new(
+                    face.second_corner.x,
+                    face.second_corner.y,
+                    face.second_corner.z,
+                );
+                let c3 = Vec3::new(
+                    face.third_corner.x,
+                    face.third_corner.y,
+                    face.third_corner.z,
+                );
+                let c4 = Vec3::new(
+                    face.fourth_corner.x,
+                    face.fourth_corner.y,
+                    face.fourth_corner.z,
+                );
 
                 let idx1 = add_vertex(&mut vertices, c1);
                 let idx2 = add_vertex(&mut vertices, c2);
@@ -84,7 +100,8 @@ pub fn write<W: Write>(writer: W, geometry: &Geometry) -> Result<()> {
     }
 
     let mut buf_writer = std::io::BufWriter::new(writer);
-    drawing.save(&mut buf_writer)
+    drawing
+        .save(&mut buf_writer)
         .map_err(|e| Error::invalid(format!("Failed to write DXF: {}", e)))?;
     Ok(())
 }

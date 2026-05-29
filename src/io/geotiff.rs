@@ -7,8 +7,8 @@ use tiff::tags::Tag;
 
 /// Reads a point cloud from a GeoTIFF stream.
 pub fn read<R: Read + Seek>(reader: R) -> Result<Geometry> {
-    let mut decoder = Decoder::new(reader)
-        .map_err(|e| Error::invalid(format!("Failed to open TIFF: {}", e)))?;
+    let mut decoder =
+        Decoder::new(reader).map_err(|e| Error::invalid(format!("Failed to open TIFF: {}", e)))?;
 
     // ModelPixelScaleTag (33550) and ModelTiepointTag (33922)
     let pixel_scale = decoder.get_tag_f64_vec(Tag::Unknown(33550)).ok();
@@ -96,14 +96,26 @@ pub fn write<W: Write + Seek>(writer: W, cloud: &PointCloud) -> Result<()> {
     for p in &cloud.points {
         let x = p.position.x;
         let y = p.position.y;
-        if x < min_x { min_x = x; }
-        if x > max_x { max_x = x; }
-        if y < min_y { min_y = y; }
-        if y > max_y { max_y = y; }
+        if x < min_x {
+            min_x = x;
+        }
+        if x > max_x {
+            max_x = x;
+        }
+        if y < min_y {
+            min_y = y;
+        }
+        if y > max_y {
+            max_y = y;
+        }
     }
 
-    if min_x >= max_x { max_x = min_x + 1.0; }
-    if min_y >= max_y { max_y = min_y + 1.0; }
+    if min_x >= max_x {
+        max_x = min_x + 1.0;
+    }
+    if min_y >= max_y {
+        max_y = min_y + 1.0;
+    }
 
     // Use a square grid sized proportionally to the point count
     let grid_size = (cloud.points.len() as f64).sqrt().round() as usize;

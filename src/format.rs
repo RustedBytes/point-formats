@@ -240,7 +240,6 @@ impl Format {
             #[cfg(feature = "sensor")]
             Self::Pcap | Self::UdpPackets | Self::VendorRaw => FormatSupport::NativeReadWrite,
 
-
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "copc"))]
@@ -259,7 +258,6 @@ impl Format {
             Self::Gpkg => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "sensor"))]
             Self::Pcap | Self::UdpPackets | Self::VendorRaw => FormatSupport::AdapterRequired,
-
 
             Self::NetCdf
             | Self::Hdf5

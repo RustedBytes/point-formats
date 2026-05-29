@@ -368,7 +368,9 @@ impl PcdLayout {
                     ("red" | "r", 0) => layout.red_idx = Some(scalar_idx),
                     ("green" | "g", 0) => layout.green_idx = Some(scalar_idx),
                     ("blue" | "b", 0) => layout.blue_idx = Some(scalar_idx),
-                    ("classification" | "class" | "label", 0) => layout.classification_idx = Some(scalar_idx),
+                    ("classification" | "class" | "label", 0) => {
+                        layout.classification_idx = Some(scalar_idx)
+                    }
                     ("normal_x" | "nx", 0) => layout.nx_idx = Some(scalar_idx),
                     ("normal_y" | "ny", 0) => layout.ny_idx = Some(scalar_idx),
                     ("normal_z" | "nz", 0) => layout.nz_idx = Some(scalar_idx),
@@ -413,9 +415,24 @@ fn point_from_scalars(
     layout: &PcdLayout,
     get_scalar: impl Fn(usize) -> Result<Scalar>,
 ) -> Result<Point> {
-    let x = get_scalar(layout.x_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing x"))?)?.as_f64();
-    let y = get_scalar(layout.y_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing y"))?)?.as_f64();
-    let z = get_scalar(layout.z_idx.ok_or_else(|| Error::parse(Format::Pcd, None, "missing z"))?)?.as_f64();
+    let x = get_scalar(
+        layout
+            .x_idx
+            .ok_or_else(|| Error::parse(Format::Pcd, None, "missing x"))?,
+    )?
+    .as_f64();
+    let y = get_scalar(
+        layout
+            .y_idx
+            .ok_or_else(|| Error::parse(Format::Pcd, None, "missing y"))?,
+    )?
+    .as_f64();
+    let z = get_scalar(
+        layout
+            .z_idx
+            .ok_or_else(|| Error::parse(Format::Pcd, None, "missing z"))?,
+    )?
+    .as_f64();
     let mut point = Point::new(x, y, z);
 
     if let Some(intensity_idx) = layout.intensity_idx {
@@ -452,7 +469,9 @@ fn point_from_scalars(
         point.classification = Some(value as u8);
     }
 
-    if let (Some(nx_idx), Some(ny_idx), Some(nz_idx)) = (layout.nx_idx, layout.ny_idx, layout.nz_idx) {
+    if let (Some(nx_idx), Some(ny_idx), Some(nz_idx)) =
+        (layout.nx_idx, layout.ny_idx, layout.nz_idx)
+    {
         point.normal = Some(Vec3::new(
             get_scalar(nx_idx)?.as_f64(),
             get_scalar(ny_idx)?.as_f64(),
@@ -493,7 +512,10 @@ fn parse_scalar_bytes_field(field: &FlatField, bytes: &[u8]) -> Result<Scalar> {
         Error::parse(
             Format::Pcd,
             None,
-            format!("slice bounds out of range for binary field of size {}", field.size),
+            format!(
+                "slice bounds out of range for binary field of size {}",
+                field.size
+            ),
         )
     })?;
     Ok(match (field.kind, field.size) {

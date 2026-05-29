@@ -5,8 +5,8 @@ use std::path::Path;
 
 /// Reads a point cloud or mesh from a glTF or GLB file.
 pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
-    let (document, buffers, _) = gltf::import(path)
-        .map_err(|e| Error::invalid(format!("Failed to parse glTF: {}", e)))?;
+    let (document, buffers, _) =
+        gltf::import(path).map_err(|e| Error::invalid(format!("Failed to parse glTF: {}", e)))?;
 
     let mut points = Vec::new();
     let mut vertices = Vec::new();
@@ -112,7 +112,9 @@ pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
     } else if !points.is_empty() {
         Ok(Geometry::PointCloud(PointCloud::new(points)))
     } else {
-        Err(Error::invalid("Empty glTF file (no points or mesh triangles found)"))
+        Err(Error::invalid(
+            "Empty glTF file (no points or mesh triangles found)",
+        ))
     }
 }
 
@@ -176,7 +178,10 @@ fn build_gltf_json_and_bin(geometry: &Geometry) -> Result<(serde_json::Value, Ve
 
     let (num_vertices, has_color) = match geometry {
         Geometry::PointCloud(cloud) => (cloud.points.len(), cloud.has_color()),
-        Geometry::Mesh(mesh) => (mesh.vertices.len(), mesh.vertices.iter().any(|v| v.color.is_some())),
+        Geometry::Mesh(mesh) => (
+            mesh.vertices.len(),
+            mesh.vertices.iter().any(|v| v.color.is_some()),
+        ),
     };
 
     let mut min_pos = [f64::MAX, f64::MAX, f64::MAX];
@@ -270,25 +275,21 @@ fn build_gltf_json_and_bin(geometry: &Geometry) -> Result<(serde_json::Value, Ve
         idx_len = bin_data.len() - idx_offset;
     }
 
-    let mut json_accessors = vec![
-        serde_json::json!({
-            "bufferView": 0,
-            "byteOffset": 0,
-            "componentType": 5126, // FLOAT
-            "count": num_vertices,
-            "type": "VEC3",
-            "max": [max_pos[0] as f32, max_pos[1] as f32, max_pos[2] as f32],
-            "min": [min_pos[0] as f32, min_pos[1] as f32, min_pos[2] as f32]
-        })
-    ];
-    let mut json_buffer_views = vec![
-        serde_json::json!({
-            "buffer": 0,
-            "byteOffset": pos_offset,
-            "byteLength": pos_len,
-            "target": 34962 // ARRAY_BUFFER
-        })
-    ];
+    let mut json_accessors = vec![serde_json::json!({
+        "bufferView": 0,
+        "byteOffset": 0,
+        "componentType": 5126, // FLOAT
+        "count": num_vertices,
+        "type": "VEC3",
+        "max": [max_pos[0] as f32, max_pos[1] as f32, max_pos[2] as f32],
+        "min": [min_pos[0] as f32, min_pos[1] as f32, min_pos[2] as f32]
+    })];
+    let mut json_buffer_views = vec![serde_json::json!({
+        "buffer": 0,
+        "byteOffset": pos_offset,
+        "byteLength": pos_len,
+        "target": 34962 // ARRAY_BUFFER
+    })];
     let mut json_attributes = serde_json::json!({
         "POSITION": 0
     });
@@ -311,7 +312,7 @@ fn build_gltf_json_and_bin(geometry: &Geometry) -> Result<(serde_json::Value, Ve
             "target": 34962
         }));
         json_attributes["COLOR_0"] = serde_json::json!(accessor_counter);
-        
+
         accessor_counter += 1;
         buffer_view_counter += 1;
     }

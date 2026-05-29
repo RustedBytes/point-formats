@@ -25,7 +25,10 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
         line_no += 1;
         let trimmed = line.trim();
         let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty() || trimmed_unsafe.starts_with('#') || trimmed_unsafe.starts_with("//") {
+        if trimmed_unsafe.is_empty()
+            || trimmed_unsafe.starts_with('#')
+            || trimmed_unsafe.starts_with("//")
+        {
             continue;
         }
 

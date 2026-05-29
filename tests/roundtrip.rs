@@ -257,9 +257,16 @@ fn las_attributes_roundtrip() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Las, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Las,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Las, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Las, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -294,9 +301,16 @@ fn laz_attributes_roundtrip() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Laz, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Laz,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Laz, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Laz, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -332,9 +346,16 @@ fn e57_attributes_roundtrip() {
     original.metadata.crs_wkt = Some("GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]".to_string());
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::E57, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::E57,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::E57, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::E57, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         assert_eq!(decoded.metadata.crs_wkt, original.metadata.crs_wkt);
@@ -374,9 +395,16 @@ fn geojson_attributes_roundtrip() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::GeoJson, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::GeoJson,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::GeoJson, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::GeoJson, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -474,14 +502,37 @@ fn geotiff_roundtrip_test() {
     let original = PointCloud::new(vec![p1, p2, p3, p4]);
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::GeoTiff, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::GeoTiff,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::GeoTiff, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::GeoTiff, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
-        let min_x = decoded.points.iter().map(|p| p.position.x).fold(f64::INFINITY, f64::min);
-        let max_x = decoded.points.iter().map(|p| p.position.x).fold(f64::NEG_INFINITY, f64::max);
-        let min_y = decoded.points.iter().map(|p| p.position.y).fold(f64::INFINITY, f64::min);
-        let max_y = decoded.points.iter().map(|p| p.position.y).fold(f64::NEG_INFINITY, f64::max);
+        let min_x = decoded
+            .points
+            .iter()
+            .map(|p| p.position.x)
+            .fold(f64::INFINITY, f64::min);
+        let max_x = decoded
+            .points
+            .iter()
+            .map(|p| p.position.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let min_y = decoded
+            .points
+            .iter()
+            .map(|p| p.position.y)
+            .fold(f64::INFINITY, f64::min);
+        let max_y = decoded
+            .points
+            .iter()
+            .map(|p| p.position.y)
+            .fold(f64::NEG_INFINITY, f64::max);
 
         assert!((min_x - 10.0).abs() < 1.0);
         assert!((max_x - 20.0).abs() < 1.0);
@@ -520,9 +571,16 @@ fn asciigrid_roundtrip_test() {
     let original = PointCloud::new(vec![p1, p2, p3, p4]);
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::AsciiGrid, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::AsciiGrid,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::AsciiGrid, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::AsciiGrid, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert!(!decoded.points.is_empty());
         let bounds = decoded.bounds().unwrap();
@@ -542,15 +600,19 @@ fn dxf_point_cloud_roundtrip_test() {
     fs::create_dir_all(&dir).unwrap();
     let file_path = dir.join("test.dxf");
 
-    let original = PointCloud::new(vec![
-        Point::new(1.0, 2.0, 3.0),
-        Point::new(4.0, 5.0, 6.0),
-    ]);
+    let original = PointCloud::new(vec![Point::new(1.0, 2.0, 3.0), Point::new(4.0, 5.0, 6.0)]);
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Dxf, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Dxf,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), 2);
         approx(decoded.points[0].position.x, 1.0);
@@ -581,9 +643,16 @@ fn dxf_mesh_roundtrip_test() {
     );
     let geometry = Geometry::Mesh(mesh);
 
-    io::write_path(&file_path, Format::Dxf, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Dxf,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Dxf, &io::NativeOptions::default()).unwrap();
     if let Geometry::Mesh(decoded) = decoded_geom {
         assert_eq!(decoded.faces.len(), 1);
         assert_eq!(decoded.vertices.len(), 3);
@@ -605,9 +674,16 @@ fn shapefile_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Shapefile, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Shapefile,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Shapefile, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Shapefile, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -646,9 +722,16 @@ fn gltf_point_cloud_roundtrip_test() {
     ]);
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Gltf, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Gltf,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), 2);
         approx(decoded.points[0].position.x, 1.0);
@@ -681,9 +764,16 @@ fn glb_point_cloud_roundtrip_test() {
     ]);
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Glb, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Glb,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), 2);
         approx(decoded.points[0].position.x, 1.0);
@@ -720,9 +810,16 @@ fn gltf_mesh_roundtrip_test() {
     );
     let geometry = Geometry::Mesh(mesh);
 
-    io::write_path(&file_path, Format::Gltf, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Gltf,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
     if let Geometry::Mesh(decoded) = decoded_geom {
         assert_eq!(decoded.faces.len(), 1);
         assert_eq!(decoded.vertices.len(), 3);
@@ -751,9 +848,16 @@ fn glb_mesh_roundtrip_test() {
     );
     let geometry = Geometry::Mesh(mesh);
 
-    io::write_path(&file_path, Format::Glb, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Glb,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
     if let Geometry::Mesh(decoded) = decoded_geom {
         assert_eq!(decoded.faces.len(), 1);
         assert_eq!(decoded.vertices.len(), 3);
@@ -775,9 +879,16 @@ fn gpkg_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Gpkg, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Gpkg,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Gpkg, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Gpkg, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -816,9 +927,20 @@ fn pc2_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::PointCloud2, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::PointCloud2,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::PointCloud2, &io::NativeOptions::default()).unwrap();
+    let decoded_geom = io::read_path(
+        &file_path,
+        Format::PointCloud2,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         let expected_gps = original.points.first().unwrap().gps_time.unwrap();
@@ -857,9 +979,16 @@ fn rosbag_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::RosBag, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::RosBag,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::RosBag, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::RosBag, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         let expected_gps = original.points.first().unwrap().gps_time.unwrap();
@@ -898,9 +1027,16 @@ fn ros2bag_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Ros2Bag, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Ros2Bag,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Ros2Bag, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Ros2Bag, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         let expected_gps = original.points.first().unwrap().gps_time.unwrap();
@@ -939,9 +1075,16 @@ fn vendorraw_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::VendorRaw, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::VendorRaw,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::VendorRaw, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::VendorRaw, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -988,9 +1131,20 @@ fn udppackets_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::UdpPackets, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::UdpPackets,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::UdpPackets, &io::NativeOptions::default()).unwrap();
+    let decoded_geom = io::read_path(
+        &file_path,
+        Format::UdpPackets,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -1031,9 +1185,16 @@ fn pcap_roundtrip_test() {
     let original = sample_las_cloud();
     let geometry = Geometry::PointCloud(original.clone());
 
-    io::write_path(&file_path, Format::Pcap, &geometry, &io::NativeOptions::default()).unwrap();
+    io::write_path(
+        &file_path,
+        Format::Pcap,
+        &geometry,
+        &io::NativeOptions::default(),
+    )
+    .unwrap();
 
-    let decoded_geom = io::read_path(&file_path, Format::Pcap, &io::NativeOptions::default()).unwrap();
+    let decoded_geom =
+        io::read_path(&file_path, Format::Pcap, &io::NativeOptions::default()).unwrap();
     if let Geometry::PointCloud(decoded) = decoded_geom {
         assert_eq!(decoded.points.len(), original.points.len());
         for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
@@ -1063,5 +1224,3 @@ fn pcap_roundtrip_test() {
 
     let _ = fs::remove_dir_all(&dir);
 }
-
-

@@ -9,8 +9,8 @@ pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
 
     let mut points = Vec::new();
     for result in reader.iter_shapes_and_records() {
-        let (shape, record) = result
-            .map_err(|e| Error::invalid(format!("Failed to read shape/record: {}", e)))?;
+        let (shape, record) =
+            result.map_err(|e| Error::invalid(format!("Failed to read shape/record: {}", e)))?;
 
         let mut pt = match shape {
             shapefile::Shape::Point(p) => Point::new(p.x, p.y, 0.0),
@@ -60,7 +60,9 @@ pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
 /// Writes a point cloud to an Esri Shapefile.
 pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
     if cloud.points.is_empty() {
-        return Err(Error::invalid("Cannot write empty point cloud to Shapefile"));
+        return Err(Error::invalid(
+            "Cannot write empty point cloud to Shapefile",
+        ));
     }
 
     let mut builder = dbase::TableWriterBuilder::new();
@@ -70,7 +72,8 @@ pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
     let has_color = cloud.has_color();
     let has_gps_time = cloud.has_gps_time();
     let has_scan_angle = cloud.points.iter().any(|p| p.scan_angle.is_some());
-    let has_any = has_intensity || has_classification || has_color || has_gps_time || has_scan_angle;
+    let has_any =
+        has_intensity || has_classification || has_color || has_gps_time || has_scan_angle;
 
     if has_intensity {
         builder = builder.add_float_field(
@@ -118,25 +121,24 @@ pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
         .map_err(|e| Error::invalid(format!("Failed to create Shapefile writer: {}", e)))?;
 
     for (idx, p) in cloud.points.iter().enumerate() {
-        let pt_z = shapefile::PointZ::new(p.position.x, p.position.y, p.position.z, shapefile::NO_DATA);
+        let pt_z =
+            shapefile::PointZ::new(p.position.x, p.position.y, p.position.z, shapefile::NO_DATA);
 
         let mut record = dbase::Record::default();
         if has_intensity {
-            record.insert("intensity".to_string(), dbase::FieldValue::Float(p.intensity));
+            record.insert(
+                "intensity".to_string(),
+                dbase::FieldValue::Float(p.intensity),
+            );
         }
         if has_classification {
             let val = p.classification.unwrap_or(0) as i32;
             record.insert("class".to_string(), dbase::FieldValue::Integer(val));
         }
         if has_color {
-            let val = p.color.map(|c| {
-                format!(
-                    "#{:02x}{:02x}{:02x}",
-                    c.red >> 8,
-                    c.green >> 8,
-                    c.blue >> 8
-                )
-            });
+            let val = p
+                .color
+                .map(|c| format!("#{:02x}{:02x}{:02x}", c.red >> 8, c.green >> 8, c.blue >> 8));
             record.insert("color".to_string(), dbase::FieldValue::Character(val));
         }
         if has_gps_time {
@@ -144,7 +146,10 @@ pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
             record.insert("gps_time".to_string(), dbase::FieldValue::Double(val));
         }
         if has_scan_angle {
-            record.insert("scan_angle".to_string(), dbase::FieldValue::Float(p.scan_angle));
+            record.insert(
+                "scan_angle".to_string(),
+                dbase::FieldValue::Float(p.scan_angle),
+            );
         }
         if !has_any {
             record.insert("id".to_string(), dbase::FieldValue::Integer(idx as i32));

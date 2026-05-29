@@ -6,8 +6,7 @@ use std::path::Path;
 
 /// How the conversion pipeline should treat formats that can contain either
 /// vertices-only point data or triangle meshes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GeometryPolicy {
     /// Preserve mesh faces when the destination supports them; otherwise require
     /// `allow_lossy` before dropping faces.
@@ -18,7 +17,6 @@ pub enum GeometryPolicy {
     /// Require mesh geometry.
     MeshOnly,
 }
-
 
 /// Conversion options. Defaults prioritize preservation and explicit errors over
 /// silent lossy behavior.

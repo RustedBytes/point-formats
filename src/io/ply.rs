@@ -403,29 +403,53 @@ fn read_ascii_vertices<R: BufRead>(
     Ok(())
 }
 
-fn read_ascii_vertex(
-    layout: &PlyVertexLayout,
-    tokens: &[&str],
-) -> Result<(Vertex, Point)> {
+fn read_ascii_vertex(layout: &PlyVertexLayout, tokens: &[&str]) -> Result<(Vertex, Point)> {
     let get_scalar = |idx: usize| -> Result<ScalarValue> {
         let prop = &layout.flat_properties[idx];
         match prop {
             Property::Scalar { kind, name } => {
                 let token = tokens.get(idx).copied().ok_or_else(|| {
-                    Error::parse(Format::Ply, None, format!("missing scalar property '{name}'"))
+                    Error::parse(
+                        Format::Ply,
+                        None,
+                        format!("missing scalar property '{name}'"),
+                    )
                 })?;
                 ScalarValue::parse_ascii(*kind, token)
             }
-            _ => Err(Error::parse(Format::Ply, None, "unexpected list property in vertex element")),
+            _ => Err(Error::parse(
+                Format::Ply,
+                None,
+                "unexpected list property in vertex element",
+            )),
         }
     };
 
-    let x = get_scalar(layout.x_idx.ok_or_else(|| Error::parse(Format::Ply, None, "missing x"))?)?.as_f64();
-    let y = get_scalar(layout.y_idx.ok_or_else(|| Error::parse(Format::Ply, None, "missing y"))?)?.as_f64();
-    let z = get_scalar(layout.z_idx.ok_or_else(|| Error::parse(Format::Ply, None, "missing z"))?)?.as_f64();
+    let x = get_scalar(
+        layout
+            .x_idx
+            .ok_or_else(|| Error::parse(Format::Ply, None, "missing x"))?,
+    )?
+    .as_f64();
+    let y = get_scalar(
+        layout
+            .y_idx
+            .ok_or_else(|| Error::parse(Format::Ply, None, "missing y"))?,
+    )?
+    .as_f64();
+    let z = get_scalar(
+        layout
+            .z_idx
+            .ok_or_else(|| Error::parse(Format::Ply, None, "missing z"))?,
+    )?
+    .as_f64();
     let position = Vec3::new(x, y, z);
     if !position.is_finite() {
-        return Err(Error::parse(Format::Ply, None, "vertex coordinates must be finite"));
+        return Err(Error::parse(
+            Format::Ply,
+            None,
+            "vertex coordinates must be finite",
+        ));
     }
 
     let mut point = Point::new(x, y, z);
@@ -434,7 +458,9 @@ fn read_ascii_vertex(
     if let Some(intensity_idx) = layout.intensity_idx {
         point.intensity = Some(get_scalar(intensity_idx)?.as_f64() as f32);
     }
-    if let (Some(r_idx), Some(g_idx), Some(b_idx)) = (layout.red_idx, layout.green_idx, layout.blue_idx) {
+    if let (Some(r_idx), Some(g_idx), Some(b_idx)) =
+        (layout.red_idx, layout.green_idx, layout.blue_idx)
+    {
         let color = Color::new(
             color_component(get_scalar(r_idx)?)?,
             color_component(get_scalar(g_idx)?)?,
@@ -446,11 +472,17 @@ fn read_ascii_vertex(
     if let Some(class_idx) = layout.classification_idx {
         let value = get_scalar(class_idx)?.as_u64()?;
         if value > u8::MAX as u64 {
-            return Err(Error::parse(Format::Ply, None, "classification exceeds u8 range"));
+            return Err(Error::parse(
+                Format::Ply,
+                None,
+                "classification exceeds u8 range",
+            ));
         }
         point.classification = Some(value as u8);
     }
-    if let (Some(nx_idx), Some(ny_idx), Some(nz_idx)) = (layout.nx_idx, layout.ny_idx, layout.nz_idx) {
+    if let (Some(nx_idx), Some(ny_idx), Some(nz_idx)) =
+        (layout.nx_idx, layout.ny_idx, layout.nz_idx)
+    {
         let normal = Vec3::new(
             get_scalar(nx_idx)?.as_f64(),
             get_scalar(ny_idx)?.as_f64(),
@@ -483,19 +515,35 @@ fn read_binary_vertex<R: Read>(
         match prop {
             Property::Scalar { kind, .. } => {
                 let val = kind.read_binary(reader)?;
-                if Some(idx) == layout.x_idx { x = Some(val.as_f64()); }
-                else if Some(idx) == layout.y_idx { y = Some(val.as_f64()); }
-                else if Some(idx) == layout.z_idx { z = Some(val.as_f64()); }
-                else if Some(idx) == layout.intensity_idx { intensity = Some(val.as_f64() as f32); }
-                else if Some(idx) == layout.red_idx { red = Some(val); }
-                else if Some(idx) == layout.green_idx { green = Some(val); }
-                else if Some(idx) == layout.blue_idx { blue = Some(val); }
-                else if Some(idx) == layout.classification_idx { classification = Some(val.as_u64()?); }
-                else if Some(idx) == layout.nx_idx { nx = Some(val.as_f64()); }
-                else if Some(idx) == layout.ny_idx { ny = Some(val.as_f64()); }
-                else if Some(idx) == layout.nz_idx { nz = Some(val.as_f64()); }
+                if Some(idx) == layout.x_idx {
+                    x = Some(val.as_f64());
+                } else if Some(idx) == layout.y_idx {
+                    y = Some(val.as_f64());
+                } else if Some(idx) == layout.z_idx {
+                    z = Some(val.as_f64());
+                } else if Some(idx) == layout.intensity_idx {
+                    intensity = Some(val.as_f64() as f32);
+                } else if Some(idx) == layout.red_idx {
+                    red = Some(val);
+                } else if Some(idx) == layout.green_idx {
+                    green = Some(val);
+                } else if Some(idx) == layout.blue_idx {
+                    blue = Some(val);
+                } else if Some(idx) == layout.classification_idx {
+                    classification = Some(val.as_u64()?);
+                } else if Some(idx) == layout.nx_idx {
+                    nx = Some(val.as_f64());
+                } else if Some(idx) == layout.ny_idx {
+                    ny = Some(val.as_f64());
+                } else if Some(idx) == layout.nz_idx {
+                    nz = Some(val.as_f64());
+                }
             }
-            Property::List { count_kind, item_kind, .. } => {
+            Property::List {
+                count_kind,
+                item_kind,
+                ..
+            } => {
                 let count = count_kind.read_binary(reader)?.as_u64()?;
                 for _ in 0..count {
                     let _ = item_kind.read_binary(reader)?;
@@ -509,7 +557,11 @@ fn read_binary_vertex<R: Read>(
     let z = z.ok_or_else(|| Error::parse(Format::Ply, None, "missing z"))?;
     let position = Vec3::new(x, y, z);
     if !position.is_finite() {
-        return Err(Error::parse(Format::Ply, None, "vertex coordinates must be finite"));
+        return Err(Error::parse(
+            Format::Ply,
+            None,
+            "vertex coordinates must be finite",
+        ));
     }
 
     let mut point = Point::new(x, y, z);
@@ -527,7 +579,11 @@ fn read_binary_vertex<R: Read>(
     }
     if let Some(class) = classification {
         if class > u8::MAX as u64 {
-            return Err(Error::parse(Format::Ply, None, "classification exceeds u8 range"));
+            return Err(Error::parse(
+                Format::Ply,
+                None,
+                "classification exceeds u8 range",
+            ));
         }
         point.classification = Some(class as u8);
     }
@@ -717,7 +773,11 @@ fn skip_binary_element<R: Read>(reader: &mut R, element: &Element) -> Result<()>
                 Property::Scalar { kind, .. } => {
                     let _ = kind.read_binary(reader)?;
                 }
-                Property::List { count_kind, item_kind, .. } => {
+                Property::List {
+                    count_kind,
+                    item_kind,
+                    ..
+                } => {
                     let count = count_kind.read_binary(reader)?.as_u64()?;
                     for _ in 0..count {
                         let _ = item_kind.read_binary(reader)?;

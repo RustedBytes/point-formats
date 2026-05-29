@@ -28,9 +28,13 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
 
     let columns = parse_usize(header_lines[0].0, &header_lines[0].1, "columns")?;
     let rows = parse_usize(header_lines[1].0, &header_lines[1].1, "rows")?;
-    let expected_points = columns
-        .checked_mul(rows)
-        .ok_or_else(|| Error::parse(Format::Ptx, header_lines[1].0, "columns * rows overflowed usize"))?;
+    let expected_points = columns.checked_mul(rows).ok_or_else(|| {
+        Error::parse(
+            Format::Ptx,
+            header_lines[1].0,
+            "columns * rows overflowed usize",
+        )
+    })?;
 
     let mut transform = [[0.0_f64; 4]; 4];
     for row in 0..4 {
@@ -64,7 +68,10 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
         line_no += 1;
         let trimmed = line.trim();
         let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty() || trimmed_unsafe.starts_with('#') || trimmed_unsafe.starts_with("//") {
+        if trimmed_unsafe.is_empty()
+            || trimmed_unsafe.starts_with('#')
+            || trimmed_unsafe.starts_with("//")
+        {
             continue;
         }
         parts.extend(trimmed_unsafe.split_whitespace());

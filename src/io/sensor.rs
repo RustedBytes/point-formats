@@ -102,11 +102,21 @@ pub fn write_vendorraw(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()>
     let has_normal = cloud.points.iter().any(|p| p.normal.is_some());
 
     let mut flags = 0_u8;
-    if has_intensity { flags |= 1; }
-    if has_color { flags |= 2; }
-    if has_class { flags |= 4; }
-    if has_gps { flags |= 8; }
-    if has_normal { flags |= 16; }
+    if has_intensity {
+        flags |= 1;
+    }
+    if has_color {
+        flags |= 2;
+    }
+    if has_class {
+        flags |= 4;
+    }
+    if has_gps {
+        flags |= 8;
+    }
+    if has_normal {
+        flags |= 16;
+    }
 
     writer.write_all(&[flags])?;
 
@@ -145,13 +155,23 @@ pub fn write_vendorraw(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()>
 fn serialize_packet_payload(points: &[Point]) -> Vec<u8> {
     let mut payload = Vec::new();
     payload.write_all(b"SNSR").unwrap();
-    payload.write_all(&(points.len() as u32).to_le_bytes()).unwrap();
+    payload
+        .write_all(&(points.len() as u32).to_le_bytes())
+        .unwrap();
 
     for p in points {
-        payload.write_all(&(p.position.x as f32).to_le_bytes()).unwrap();
-        payload.write_all(&(p.position.y as f32).to_le_bytes()).unwrap();
-        payload.write_all(&(p.position.z as f32).to_le_bytes()).unwrap();
-        payload.write_all(&p.intensity.unwrap_or(0.0).to_le_bytes()).unwrap();
+        payload
+            .write_all(&(p.position.x as f32).to_le_bytes())
+            .unwrap();
+        payload
+            .write_all(&(p.position.y as f32).to_le_bytes())
+            .unwrap();
+        payload
+            .write_all(&(p.position.z as f32).to_le_bytes())
+            .unwrap();
+        payload
+            .write_all(&p.intensity.unwrap_or(0.0).to_le_bytes())
+            .unwrap();
 
         let color = p.color.unwrap_or(Color::new(0, 0, 0));
         let r = (color.red >> 8) as u8;
@@ -160,7 +180,9 @@ fn serialize_packet_payload(points: &[Point]) -> Vec<u8> {
         payload.write_all(&[r, g, b]).unwrap();
 
         payload.write_all(&[p.classification.unwrap_or(0)]).unwrap();
-        payload.write_all(&p.gps_time.unwrap_or(0.0).to_le_bytes()).unwrap();
+        payload
+            .write_all(&p.gps_time.unwrap_or(0.0).to_le_bytes())
+            .unwrap();
     }
     payload
 }
@@ -175,7 +197,9 @@ fn deserialize_packet_payload(payload: &[u8], points: &mut Vec<Point>) -> Result
     let count = u32::from_le_bytes(payload[4..8].try_into().unwrap()) as usize;
     let expected_len = 8 + count * 28;
     if payload.len() < expected_len {
-        return Err(Error::invalid("UDP packet payload too short for point count"));
+        return Err(Error::invalid(
+            "UDP packet payload too short for point count",
+        ));
     }
 
     let mut offset = 8;
@@ -238,12 +262,12 @@ pub fn write_udppackets(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()
 
 fn write_pcap_global_header<W: Write>(writer: &mut W) -> std::io::Result<()> {
     writer.write_all(&0xa1b2c3d4_u32.to_le_bytes())?; // magic
-    writer.write_all(&2_u16.to_le_bytes())?;         // major
-    writer.write_all(&4_u16.to_le_bytes())?;         // minor
-    writer.write_all(&0_i32.to_le_bytes())?;         // timezone
-    writer.write_all(&0_u32.to_le_bytes())?;         // sigfigs
-    writer.write_all(&65535_u32.to_le_bytes())?;     // snaplen
-    writer.write_all(&1_u32.to_le_bytes())?;         // network (Ethernet)
+    writer.write_all(&2_u16.to_le_bytes())?; // major
+    writer.write_all(&4_u16.to_le_bytes())?; // minor
+    writer.write_all(&0_i32.to_le_bytes())?; // timezone
+    writer.write_all(&0_u32.to_le_bytes())?; // sigfigs
+    writer.write_all(&65535_u32.to_le_bytes())?; // snaplen
+    writer.write_all(&1_u32.to_le_bytes())?; // network (Ethernet)
     Ok(())
 }
 
@@ -312,7 +336,10 @@ pub fn read_pcap(path: impl AsRef<Path>) -> Result<Geometry> {
 
     let network = read_u32_pcap(global_header[20..24].try_into().unwrap());
     if network != 1 && network != 101 {
-        return Err(Error::invalid(format!("Unsupported PCAP LinkType: {}", network)));
+        return Err(Error::invalid(format!(
+            "Unsupported PCAP LinkType: {}",
+            network
+        )));
     }
 
     let mut points = Vec::new();
@@ -358,7 +385,11 @@ pub fn read_pcap(path: impl AsRef<Path>) -> Result<Geometry> {
                 if pkt_data.len() < udp_header_start + 8 {
                     continue;
                 }
-                let udp_len = u16::from_be_bytes(pkt_data[udp_header_start + 4..udp_header_start + 6].try_into().unwrap()) as usize;
+                let udp_len = u16::from_be_bytes(
+                    pkt_data[udp_header_start + 4..udp_header_start + 6]
+                        .try_into()
+                        .unwrap(),
+                ) as usize;
                 let payload_start = udp_header_start + 8;
                 if pkt_data.len() < payload_start {
                     continue;
@@ -379,7 +410,11 @@ pub fn read_pcap(path: impl AsRef<Path>) -> Result<Geometry> {
                 if pkt_data.len() < udp_header_start + 8 {
                     continue;
                 }
-                let udp_len = u16::from_be_bytes(pkt_data[udp_header_start + 4..udp_header_start + 6].try_into().unwrap()) as usize;
+                let udp_len = u16::from_be_bytes(
+                    pkt_data[udp_header_start + 4..udp_header_start + 6]
+                        .try_into()
+                        .unwrap(),
+                ) as usize;
                 let payload_start = udp_header_start + 8;
                 if pkt_data.len() < payload_start {
                     continue;

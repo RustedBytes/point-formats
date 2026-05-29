@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::types::{Color, Geometry, Point, PointCloud};
-use las::{Builder, point::Format, Reader, Writer};
+use las::{point::Format, Builder, Reader, Writer};
 use std::io::{Read, Seek, Write};
 
 /// Reads a point cloud from a LAS/LAZ stream.
@@ -53,7 +53,9 @@ pub fn write<W: Write + Seek + Send + 'static>(writer: W, cloud: &PointCloud) ->
     let mut builder = Builder::from((1, 2)); // LAS 1.2
     builder.point_format = Format::new(format_val).map_err(|e| Error::invalid(e.to_string()))?;
 
-    let mut header = builder.into_header().map_err(|e| Error::invalid(e.to_string()))?;
+    let mut header = builder
+        .into_header()
+        .map_err(|e| Error::invalid(e.to_string()))?;
 
     let mut las_points = Vec::with_capacity(cloud.points.len());
     for p in &cloud.points {
@@ -92,7 +94,9 @@ pub fn write<W: Write + Seek + Send + 'static>(writer: W, cloud: &PointCloud) ->
 
     let mut writer = Writer::new(writer, header).map_err(|e| Error::invalid(e.to_string()))?;
     for las_point in las_points {
-        writer.write_point(las_point).map_err(|e| Error::invalid(e.to_string()))?;
+        writer
+            .write_point(las_point)
+            .map_err(|e| Error::invalid(e.to_string()))?;
     }
     writer.close().map_err(|e| Error::invalid(e.to_string()))?;
 

@@ -1,6 +1,8 @@
 use crate::error::{Error, Result};
 use crate::types::{Color as NativeColor, Geometry, Metadata, Point as NativePoint, PointCloud};
-use e57::{CartesianCoordinate, E57Reader, E57Writer, Record, RecordDataType, RecordName, RecordValue};
+use e57::{
+    CartesianCoordinate, E57Reader, E57Writer, Record, RecordDataType, RecordName, RecordValue,
+};
 use std::io::{Read, Seek};
 use std::path::Path;
 
@@ -49,7 +51,8 @@ pub fn read<R: Read + Seek>(reader: &mut R) -> Result<Geometry> {
 /// Writes a point cloud to an E57 file path.
 pub fn write_to_path(path: &Path, cloud: &PointCloud) -> Result<()> {
     let file_guid = uuid::Uuid::new_v4().to_string();
-    let mut e57_writer = E57Writer::from_file(path, &file_guid).map_err(|e| Error::invalid(e.to_string()))?;
+    let mut e57_writer =
+        E57Writer::from_file(path, &file_guid).map_err(|e| Error::invalid(e.to_string()))?;
 
     if let Some(crs) = &cloud.metadata.crs_wkt {
         e57_writer.set_coordinate_metadata(Some(crs.clone()));
@@ -72,7 +75,10 @@ pub fn write_to_path(path: &Path, cloud: &PointCloud) -> Result<()> {
     if has_intensity {
         prototype.push(Record {
             name: RecordName::Intensity,
-            data_type: RecordDataType::Single { min: None, max: None },
+            data_type: RecordDataType::Single {
+                min: None,
+                max: None,
+            },
         });
     }
 
@@ -106,8 +112,12 @@ pub fn write_to_path(path: &Path, cloud: &PointCloud) -> Result<()> {
             .map_err(|e| Error::invalid(e.to_string()))?;
     }
 
-    pc_writer.finalize().map_err(|e| Error::invalid(e.to_string()))?;
-    e57_writer.finalize().map_err(|e| Error::invalid(e.to_string()))?;
+    pc_writer
+        .finalize()
+        .map_err(|e| Error::invalid(e.to_string()))?;
+    e57_writer
+        .finalize()
+        .map_err(|e| Error::invalid(e.to_string()))?;
 
     Ok(())
 }

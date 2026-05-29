@@ -39,14 +39,51 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
         let val = parts[1];
 
         match key.as_str() {
-            "ncols" => ncols = val.parse::<usize>().map_err(|e| Error::invalid(format!("Invalid ncols: {}", e)))?,
-            "nrows" => nrows = val.parse::<usize>().map_err(|e| Error::invalid(format!("Invalid nrows: {}", e)))?,
-            "xllcorner" => xllcorner = Some(val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid xllcorner: {}", e)))?),
-            "yllcorner" => yllcorner = Some(val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid yllcorner: {}", e)))?),
-            "xllcenter" => xllcenter = Some(val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid xllcenter: {}", e)))?),
-            "yllcenter" => yllcenter = Some(val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid yllcenter: {}", e)))?),
-            "cellsize" => cellsize = val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid cellsize: {}", e)))?,
-            "nodata_value" => nodata_value = Some(val.parse::<f64>().map_err(|e| Error::invalid(format!("Invalid nodata_value: {}", e)))?),
+            "ncols" => {
+                ncols = val
+                    .parse::<usize>()
+                    .map_err(|e| Error::invalid(format!("Invalid ncols: {}", e)))?
+            }
+            "nrows" => {
+                nrows = val
+                    .parse::<usize>()
+                    .map_err(|e| Error::invalid(format!("Invalid nrows: {}", e)))?
+            }
+            "xllcorner" => {
+                xllcorner = Some(
+                    val.parse::<f64>()
+                        .map_err(|e| Error::invalid(format!("Invalid xllcorner: {}", e)))?,
+                )
+            }
+            "yllcorner" => {
+                yllcorner = Some(
+                    val.parse::<f64>()
+                        .map_err(|e| Error::invalid(format!("Invalid yllcorner: {}", e)))?,
+                )
+            }
+            "xllcenter" => {
+                xllcenter = Some(
+                    val.parse::<f64>()
+                        .map_err(|e| Error::invalid(format!("Invalid xllcenter: {}", e)))?,
+                )
+            }
+            "yllcenter" => {
+                yllcenter = Some(
+                    val.parse::<f64>()
+                        .map_err(|e| Error::invalid(format!("Invalid yllcenter: {}", e)))?,
+                )
+            }
+            "cellsize" => {
+                cellsize = val
+                    .parse::<f64>()
+                    .map_err(|e| Error::invalid(format!("Invalid cellsize: {}", e)))?
+            }
+            "nodata_value" => {
+                nodata_value = Some(
+                    val.parse::<f64>()
+                        .map_err(|e| Error::invalid(format!("Invalid nodata_value: {}", e)))?,
+                )
+            }
             _ => {
                 break;
             }
@@ -54,19 +91,29 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
     }
 
     if ncols == 0 || nrows == 0 || cellsize <= 0.0 {
-        return Err(Error::invalid("Esri ASCII Grid header missing ncols, nrows, or cellsize"));
+        return Err(Error::invalid(
+            "Esri ASCII Grid header missing ncols, nrows, or cellsize",
+        ));
     }
 
     let min_x = match (xllcorner, xllcenter) {
         (Some(c), _) => c,
         (None, Some(c)) => c - cellsize / 2.0,
-        (None, None) => return Err(Error::invalid("Esri ASCII Grid header missing xllcorner/xllcenter")),
+        (None, None) => {
+            return Err(Error::invalid(
+                "Esri ASCII Grid header missing xllcorner/xllcenter",
+            ))
+        }
     };
 
     let min_y = match (yllcorner, yllcenter) {
         (Some(c), _) => c,
         (None, Some(c)) => c - cellsize / 2.0,
-        (None, None) => return Err(Error::invalid("Esri ASCII Grid header missing yllcorner/yllcenter")),
+        (None, None) => {
+            return Err(Error::invalid(
+                "Esri ASCII Grid header missing yllcorner/yllcenter",
+            ))
+        }
     };
 
     let nodata = nodata_value.unwrap_or(-9999.0);
@@ -81,7 +128,18 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
     if !trimmed.is_empty() {
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
         let key = parts.first().unwrap_or(&"").to_lowercase();
-        if !["ncols", "nrows", "xllcorner", "yllcorner", "xllcenter", "yllcenter", "cellsize", "nodata_value"].contains(&key.as_str()) {
+        if ![
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "xllcenter",
+            "yllcenter",
+            "cellsize",
+            "nodata_value",
+        ]
+        .contains(&key.as_str())
+        {
             body.push_str(trimmed);
             body.push(' ');
         }
@@ -90,7 +148,9 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
     reader.read_to_string(&mut body)?;
 
     for token in body.split_whitespace() {
-        let z = token.parse::<f64>().map_err(|e| Error::invalid(format!("Failed to parse float: {}", e)))?;
+        let z = token
+            .parse::<f64>()
+            .map_err(|e| Error::invalid(format!("Failed to parse float: {}", e)))?;
         if (z - nodata).abs() > 1e-9 {
             let x = min_x + col as f64 * cellsize;
             let y = min_y + (nrows - 1 - row) as f64 * cellsize;
@@ -113,7 +173,9 @@ pub fn read<R: Read>(reader: R) -> Result<Geometry> {
 /// Writes a point cloud to an Esri ASCII Grid stream.
 pub fn write<W: Write>(mut writer: W, cloud: &PointCloud) -> Result<()> {
     if cloud.points.is_empty() {
-        return Err(Error::invalid("Cannot write empty point cloud to Esri ASCII Grid"));
+        return Err(Error::invalid(
+            "Cannot write empty point cloud to Esri ASCII Grid",
+        ));
     }
 
     let mut min_x = f64::MAX;
@@ -123,14 +185,26 @@ pub fn write<W: Write>(mut writer: W, cloud: &PointCloud) -> Result<()> {
     for p in &cloud.points {
         let x = p.position.x;
         let y = p.position.y;
-        if x < min_x { min_x = x; }
-        if x > max_x { max_x = x; }
-        if y < min_y { min_y = y; }
-        if y > max_y { max_y = y; }
+        if x < min_x {
+            min_x = x;
+        }
+        if x > max_x {
+            max_x = x;
+        }
+        if y < min_y {
+            min_y = y;
+        }
+        if y > max_y {
+            max_y = y;
+        }
     }
 
-    if min_x >= max_x { max_x = min_x + 1.0; }
-    if min_y >= max_y { max_y = min_y + 1.0; }
+    if min_x >= max_x {
+        max_x = min_x + 1.0;
+    }
+    if min_y >= max_y {
+        max_y = min_y + 1.0;
+    }
 
     let grid_size = (cloud.points.len() as f64).sqrt().round() as usize;
     let grid_size = grid_size.clamp(16, 512);

@@ -12,7 +12,7 @@ pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
         .prepare("SELECT table_name, column_name FROM gpkg_geometry_columns")
         .map_err(|e| Error::invalid(format!("Failed to query gpkg_geometry_columns: {}", e)))?;
     let mut rows = stmt.query([])?;
-    
+
     let mut table_name = "points".to_string();
     let mut geom_column = "geom".to_string();
     if let Some(row) = rows.next()? {
@@ -129,7 +129,9 @@ pub fn read(path: impl AsRef<Path>) -> Result<Geometry> {
 /// Writes a point cloud to a GeoPackage file.
 pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
     if cloud.points.is_empty() {
-        return Err(Error::invalid("Cannot write empty point cloud to GeoPackage"));
+        return Err(Error::invalid(
+            "Cannot write empty point cloud to GeoPackage",
+        ));
     }
 
     // Delete existing file if any
@@ -309,14 +311,9 @@ pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
                 params_vec.push(Box::new(p.classification.map(|c| c as i64)));
             }
             if has_color {
-                let hex = p.color.map(|c| {
-                    format!(
-                        "#{:02x}{:02x}{:02x}",
-                        c.red >> 8,
-                        c.green >> 8,
-                        c.blue >> 8
-                    )
-                });
+                let hex = p
+                    .color
+                    .map(|c| format!("#{:02x}{:02x}{:02x}", c.red >> 8, c.green >> 8, c.blue >> 8));
                 params_vec.push(Box::new(hex));
             }
             if has_gps_time {
@@ -326,7 +323,8 @@ pub fn write(path: impl AsRef<Path>, cloud: &PointCloud) -> Result<()> {
                 params_vec.push(Box::new(p.scan_angle.map(|a| a as f64)));
             }
 
-            let params_ref: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+            let params_ref: Vec<&dyn rusqlite::ToSql> =
+                params_vec.iter().map(|b| b.as_ref()).collect();
             stmt.execute(&*params_ref)?;
         }
     }
@@ -353,15 +351,19 @@ fn parse_gpb_geometry(blob: &[u8]) -> Result<(f64, f64, f64)> {
         2 => 48,
         3 => 48,
         4 => 64,
-        _ => return Err(Error::invalid(format!(
-            "Invalid GeoPackage binary geometry envelope type: {}",
-            envelope_type
-        ))),
+        _ => {
+            return Err(Error::invalid(format!(
+                "Invalid GeoPackage binary geometry envelope type: {}",
+                envelope_type
+            )))
+        }
     };
 
     let wkb_offset = 8 + envelope_size;
     if blob.len() < wkb_offset + 5 {
-        return Err(Error::invalid("GeoPackage binary geometry blob contains no WKB payload"));
+        return Err(Error::invalid(
+            "GeoPackage binary geometry blob contains no WKB payload",
+        ));
     }
 
     let wkb = &blob[wkb_offset..];
@@ -410,7 +412,10 @@ fn parse_gpb_geometry(blob: &[u8]) -> Result<(f64, f64, f64)> {
             };
             Ok((x, y, z))
         }
-        _ => Err(Error::invalid(format!("Unsupported geometry type in WKB: {}", wkb_type))),
+        _ => Err(Error::invalid(format!(
+            "Unsupported geometry type in WKB: {}",
+            wkb_type
+        ))),
     }
 }
 

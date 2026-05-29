@@ -105,4 +105,3 @@ impl From<rusqlite::Error> for Error {
         Self::invalid(format!("SQLite error: {error}"))
     }
 }
-

@@ -8,8 +8,6 @@ pub mod pts;
 pub mod ptx;
 pub mod stl;
 
-#[cfg(feature = "las")]
-pub mod las;
 #[cfg(feature = "copc")]
 pub mod copc;
 #[cfg(feature = "e57")]
@@ -18,12 +16,12 @@ pub mod e57;
 pub mod geojson;
 #[cfg(feature = "geospatial")]
 pub mod geotiff;
+#[cfg(feature = "las")]
+pub mod las;
 
 pub mod asciigrid;
 #[cfg(feature = "dxf")]
 pub mod dxf;
-#[cfg(feature = "shapefile")]
-pub mod shapefile;
 #[cfg(feature = "gltf")]
 pub mod gltf;
 #[cfg(feature = "gpkg")]
@@ -32,8 +30,8 @@ pub mod gpkg;
 pub mod robotics;
 #[cfg(feature = "sensor")]
 pub mod sensor;
-
-
+#[cfg(feature = "shapefile")]
+pub mod shapefile;
 
 use crate::error::{Error, Result};
 use crate::format::Format;
@@ -301,8 +299,6 @@ pub fn read_path(
         return sensor::read_vendorraw(path);
     }
 
-
-
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     match format {
@@ -321,16 +317,16 @@ pub fn read_path(
         Format::Obj => obj::read(&mut reader),
         Format::Stl => stl::read(&mut reader),
         Format::AsciiGrid => asciigrid::read(&mut reader),
-        
+
         #[cfg(feature = "dxf")]
         Format::Dxf => dxf::read(&mut reader),
-        
+
         #[cfg(feature = "las")]
         Format::Las | Format::Laz => las::read(reader),
-        
+
         #[cfg(feature = "copc")]
         Format::Copc => copc::read(&mut reader),
-        
+
         #[cfg(feature = "e57")]
         Format::E57 => e57::read(&mut reader),
 
@@ -416,8 +412,6 @@ pub fn write_path(
         return sensor::write_vendorraw(path, cloud);
     }
 
-
-
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
     match format {
@@ -446,10 +440,10 @@ pub fn write_path(
             let cloud = as_cloud_for_point_format(geometry, format)?;
             asciigrid::write(&mut writer, cloud)
         }
-        
+
         #[cfg(feature = "dxf")]
         Format::Dxf => dxf::write(&mut writer, geometry),
-        
+
         #[cfg(feature = "las")]
         Format::Las | Format::Laz => {
             let cloud = as_cloud_for_point_format(geometry, format)?;
