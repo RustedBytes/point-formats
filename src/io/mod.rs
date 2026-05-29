@@ -28,6 +28,9 @@ pub mod shapefile;
 pub mod gltf;
 #[cfg(feature = "gpkg")]
 pub mod gpkg;
+#[cfg(feature = "robotics")]
+pub mod robotics;
+
 
 use crate::error::{Error, Result};
 use crate::format::Format;
@@ -261,6 +264,22 @@ pub fn read_path(
         return gpkg::read(path);
     }
 
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::RosBag) {
+        return robotics::read_rosbag(path);
+    }
+
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::Ros2Bag) {
+        return robotics::read_ros2bag(path);
+    }
+
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::PointCloud2) {
+        return robotics::read_pc2(path);
+    }
+
+
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     match format {
@@ -337,6 +356,25 @@ pub fn write_path(
         let cloud = as_cloud_for_point_format(geometry, format)?;
         return gpkg::write(path, cloud);
     }
+
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::RosBag) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return robotics::write_rosbag(path, cloud);
+    }
+
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::Ros2Bag) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return robotics::write_ros2bag(path, cloud);
+    }
+
+    #[cfg(feature = "robotics")]
+    if matches!(format, Format::PointCloud2) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return robotics::write_pc2(path, cloud);
+    }
+
 
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);

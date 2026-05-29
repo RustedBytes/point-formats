@@ -127,6 +127,7 @@ impl Format {
             "pcap" | "pcapng" => Some(Self::Pcap),
             "bag" => Some(Self::RosBag),
             "db3" => Some(Self::Ros2Bag),
+            "pc2" | "pointcloud2" => Some(Self::PointCloud2),
             _ => None,
         }
     }
@@ -232,6 +233,8 @@ impl Format {
             Self::Gltf | Self::Glb => FormatSupport::NativeReadWrite,
             #[cfg(feature = "gpkg")]
             Self::Gpkg => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "robotics")]
+            Self::RosBag | Self::Ros2Bag | Self::PointCloud2 => FormatSupport::NativeReadWrite,
 
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
@@ -259,9 +262,6 @@ impl Format {
             | Self::Pcap
             | Self::UdpPackets
             | Self::VendorRaw
-            | Self::RosBag
-            | Self::Ros2Bag
-            | Self::PointCloud2
             | Self::Rcp
             | Self::Rcs => FormatSupport::AdapterRequired,
 
@@ -270,6 +270,9 @@ impl Format {
 
             #[cfg(not(feature = "gltf"))]
             Self::Gltf | Self::Glb => FormatSupport::AdapterRequired,
+
+            #[cfg(not(feature = "robotics"))]
+            Self::RosBag | Self::Ros2Bag | Self::PointCloud2 => FormatSupport::AdapterRequired,
         }
     }
 

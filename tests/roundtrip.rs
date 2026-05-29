@@ -805,3 +805,127 @@ fn gpkg_roundtrip_test() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+#[cfg(feature = "robotics")]
+fn pc2_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.pc2");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::PointCloud2, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::PointCloud2, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        let expected_gps = original.points.first().unwrap().gps_time.unwrap();
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert!((p_dec.gps_time.unwrap() - expected_gps).abs() < 1e-3);
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "robotics")]
+fn rosbag_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.bag");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::RosBag, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::RosBag, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        let expected_gps = original.points.first().unwrap().gps_time.unwrap();
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert!((p_dec.gps_time.unwrap() - expected_gps).abs() < 1e-3);
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "robotics")]
+fn ros2bag_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.db3");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Ros2Bag, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Ros2Bag, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        let expected_gps = original.points.first().unwrap().gps_time.unwrap();
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert!((p_dec.gps_time.unwrap() - expected_gps).abs() < 1e-3);
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
