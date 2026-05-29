@@ -98,3 +98,11 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+#[cfg(feature = "gpkg")]
+impl From<rusqlite::Error> for Error {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::invalid(format!("SQLite error: {error}"))
+    }
+}
+

@@ -228,6 +228,10 @@ impl Format {
             Self::Dxf => FormatSupport::NativeReadWrite,
             #[cfg(feature = "shapefile")]
             Self::Shapefile => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "gltf")]
+            Self::Gltf | Self::Glb => FormatSupport::NativeReadWrite,
+            #[cfg(feature = "gpkg")]
+            Self::Gpkg => FormatSupport::NativeReadWrite,
 
             #[cfg(not(feature = "las"))]
             Self::Las | Self::Laz => FormatSupport::AdapterRequired,
@@ -241,13 +245,14 @@ impl Format {
             Self::Dxf => FormatSupport::AdapterRequired,
             #[cfg(not(feature = "shapefile"))]
             Self::Shapefile => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "gltf"))]
+            Self::Gltf | Self::Glb => FormatSupport::AdapterRequired,
+            #[cfg(not(feature = "gpkg"))]
+            Self::Gpkg => FormatSupport::AdapterRequired,
 
             Self::NetCdf
             | Self::Hdf5
-            | Self::Gpkg
             | Self::Fbx
-            | Self::Gltf
-            | Self::Glb
             | Self::Dwg
             | Self::Potree
             | Self::Ept
@@ -259,6 +264,12 @@ impl Format {
             | Self::PointCloud2
             | Self::Rcp
             | Self::Rcs => FormatSupport::AdapterRequired,
+
+            #[cfg(not(feature = "gpkg"))]
+            Self::Gpkg => FormatSupport::AdapterRequired,
+
+            #[cfg(not(feature = "gltf"))]
+            Self::Gltf | Self::Glb => FormatSupport::AdapterRequired,
         }
     }
 

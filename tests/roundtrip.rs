@@ -633,3 +633,175 @@ fn shapefile_roundtrip_test() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+#[test]
+#[cfg(feature = "gltf")]
+fn gltf_point_cloud_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.gltf");
+
+    let original = PointCloud::new(vec![
+        Point::new(1.0, 2.0, 3.0).with_color(Color::new(10000, 20000, 30000)),
+        Point::new(4.0, 5.0, 6.0).with_color(Color::new(40000, 50000, 60000)),
+    ]);
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Gltf, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), 2);
+        approx(decoded.points[0].position.x, 1.0);
+        approx(decoded.points[0].position.y, 2.0);
+        approx(decoded.points[0].position.z, 3.0);
+        if let (Some(c1), Some(c2)) = (decoded.points[0].color, original.points[0].color) {
+            assert_eq!(c1.red >> 8, c2.red >> 8);
+            assert_eq!(c1.green >> 8, c2.green >> 8);
+            assert_eq!(c1.blue >> 8, c2.blue >> 8);
+        } else {
+            panic!("Expected color");
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "gltf")]
+fn glb_point_cloud_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.glb");
+
+    let original = PointCloud::new(vec![
+        Point::new(1.0, 2.0, 3.0).with_color(Color::new(10000, 20000, 30000)),
+        Point::new(4.0, 5.0, 6.0).with_color(Color::new(40000, 50000, 60000)),
+    ]);
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Glb, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), 2);
+        approx(decoded.points[0].position.x, 1.0);
+        approx(decoded.points[0].position.y, 2.0);
+        approx(decoded.points[0].position.z, 3.0);
+        if let (Some(c1), Some(c2)) = (decoded.points[0].color, original.points[0].color) {
+            assert_eq!(c1.red >> 8, c2.red >> 8);
+            assert_eq!(c1.green >> 8, c2.green >> 8);
+            assert_eq!(c1.blue >> 8, c2.blue >> 8);
+        } else {
+            panic!("Expected color");
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "gltf")]
+fn gltf_mesh_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.gltf");
+
+    let mesh = Mesh::new(
+        vec![
+            Vertex::new(Vec3::new(0.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(0.0, 1.0, 0.0)),
+        ],
+        vec![Face::new(0, 1, 2)],
+    );
+    let geometry = Geometry::Mesh(mesh);
+
+    io::write_path(&file_path, Format::Gltf, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Gltf, &io::NativeOptions::default()).unwrap();
+    if let Geometry::Mesh(decoded) = decoded_geom {
+        assert_eq!(decoded.faces.len(), 1);
+        assert_eq!(decoded.vertices.len(), 3);
+        approx(decoded.vertices[1].position.x, 1.0);
+    } else {
+        panic!("expected mesh");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "gltf")]
+fn glb_mesh_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.glb");
+
+    let mesh = Mesh::new(
+        vec![
+            Vertex::new(Vec3::new(0.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(1.0, 0.0, 0.0)),
+            Vertex::new(Vec3::new(0.0, 1.0, 0.0)),
+        ],
+        vec![Face::new(0, 1, 2)],
+    );
+    let geometry = Geometry::Mesh(mesh);
+
+    io::write_path(&file_path, Format::Glb, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Glb, &io::NativeOptions::default()).unwrap();
+    if let Geometry::Mesh(decoded) = decoded_geom {
+        assert_eq!(decoded.faces.len(), 1);
+        assert_eq!(decoded.vertices.len(), 3);
+        approx(decoded.vertices[1].position.x, 1.0);
+    } else {
+        panic!("expected mesh");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(feature = "gpkg")]
+fn gpkg_roundtrip_test() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let file_path = dir.join("test.gpkg");
+
+    let original = sample_las_cloud();
+    let geometry = Geometry::PointCloud(original.clone());
+
+    io::write_path(&file_path, Format::Gpkg, &geometry, &io::NativeOptions::default()).unwrap();
+
+    let decoded_geom = io::read_path(&file_path, Format::Gpkg, &io::NativeOptions::default()).unwrap();
+    if let Geometry::PointCloud(decoded) = decoded_geom {
+        assert_eq!(decoded.points.len(), original.points.len());
+        for (p_orig, p_dec) in original.points.iter().zip(decoded.points.iter()) {
+            approx(p_orig.position.x, p_dec.position.x);
+            approx(p_orig.position.y, p_dec.position.y);
+            approx(p_orig.position.z, p_dec.position.z);
+            assert_eq!(p_orig.intensity.is_some(), p_dec.intensity.is_some());
+            if let (Some(i1), Some(i2)) = (p_orig.intensity, p_dec.intensity) {
+                assert!((i1 - i2).abs() < 1e-3);
+            }
+            assert_eq!(p_orig.classification, p_dec.classification);
+            assert_eq!(p_orig.gps_time, p_dec.gps_time);
+            assert_eq!(p_orig.scan_angle, p_dec.scan_angle);
+            if let (Some(c1), Some(c2)) = (p_orig.color, p_dec.color) {
+                assert_eq!(c1.red >> 8, c2.red >> 8);
+                assert_eq!(c1.green >> 8, c2.green >> 8);
+                assert_eq!(c1.blue >> 8, c2.blue >> 8);
+            } else {
+                assert_eq!(p_orig.color.is_some(), p_dec.color.is_some());
+            }
+        }
+    } else {
+        panic!("expected point cloud");
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}

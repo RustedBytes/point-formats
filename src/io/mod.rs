@@ -24,6 +24,10 @@ pub mod asciigrid;
 pub mod dxf;
 #[cfg(feature = "shapefile")]
 pub mod shapefile;
+#[cfg(feature = "gltf")]
+pub mod gltf;
+#[cfg(feature = "gpkg")]
+pub mod gpkg;
 
 use crate::error::{Error, Result};
 use crate::format::Format;
@@ -247,6 +251,16 @@ pub fn read_path(
         return shapefile::read(path);
     }
 
+    #[cfg(feature = "gltf")]
+    if matches!(format, Format::Gltf | Format::Glb) {
+        return gltf::read(path);
+    }
+
+    #[cfg(feature = "gpkg")]
+    if matches!(format, Format::Gpkg) {
+        return gpkg::read(path);
+    }
+
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     match format {
@@ -306,6 +320,22 @@ pub fn write_path(
     if matches!(format, Format::Shapefile) {
         let cloud = as_cloud_for_point_format(geometry, format)?;
         return shapefile::write(path, cloud);
+    }
+
+    #[cfg(feature = "gltf")]
+    if matches!(format, Format::Gltf) {
+        return gltf::write_gltf(path, geometry);
+    }
+
+    #[cfg(feature = "gltf")]
+    if matches!(format, Format::Glb) {
+        return gltf::write_glb(path, geometry);
+    }
+
+    #[cfg(feature = "gpkg")]
+    if matches!(format, Format::Gpkg) {
+        let cloud = as_cloud_for_point_format(geometry, format)?;
+        return gpkg::write(path, cloud);
     }
 
     let file = File::create(path)?;
