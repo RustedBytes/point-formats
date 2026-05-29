@@ -1,0 +1,35 @@
+[package]
+name = "lidar-format-convert"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+authors = ["OpenAI"]
+license = "MIT OR Apache-2.0"
+description = "Dependency-light LiDAR/point-cloud/mesh format conversion crate with explicit adapters for heavyweight formats."
+keywords = ["lidar", "point-cloud", "ply", "pcd", "las"]
+categories = ["science::geo", "encoding", "command-line-utilities"]
+readme = "README.md"
+
+[lib]
+name = "lidar_format_convert"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lidar-convert"
+path = "src/main.rs"
+
+[features]
+default = []
+# Reserved names for downstream/internal adapter crates. The core crate intentionally
+# compiles without native dependencies; adapters can use the public Codec trait.
+las = []
+laz = ["las"]
+copc = []
+e57 = []
+geospatial = []
+robotics = []
+vendor = []
+
+[dependencies]
+
+[dev-dependencies]
