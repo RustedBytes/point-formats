@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::io::{
-    fmt_f64, read_exact, read_f32_le, read_f64_le, read_u16_le, read_u32_le, write_f32_le,
+    read_exact, read_f32_le, read_f64_le, read_u16_le, read_u32_le, write_f32_le,
     write_f64_le, write_u16_le, write_u32_le, PlyEncoding, PlyOptions,
 };
 use crate::types::{Color, Face, Geometry, Mesh, Point, PointCloud, Vec3, Vertex};
@@ -382,9 +382,7 @@ fn read_ascii_vertices<R: BufRead>(
 ) -> Result<()> {
     let layout = PlyVertexLayout::from_element(element);
     let mut line = String::new();
-    let mut values = Vec::new();
     for row in 0..element.count {
-        values.clear();
         line.clear();
         if reader.read_line(&mut line)? == 0 {
             return Err(Error::parse(
@@ -394,9 +392,18 @@ fn read_ascii_vertices<R: BufRead>(
             ));
         }
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        values.extend(trimmed_unsafe.split_whitespace());
-        let (vertex, point) = read_ascii_vertex(&layout, &values)?;
+        let mut values_buf = [""; 64];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 64 {
+                values_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let values = &values_buf[..count];
+        let (vertex, point) = read_ascii_vertex(&layout, values)?;
         vertices.push(vertex);
         points.push(point);
     }
@@ -602,10 +609,8 @@ fn read_ascii_faces<R: BufRead>(
     faces: &mut Vec<Face>,
 ) -> Result<()> {
     let mut line = String::new();
-    let mut tokens = Vec::new();
     let mut values = Vec::new();
     for row in 0..element.count {
-        tokens.clear();
         line.clear();
         if reader.read_line(&mut line)? == 0 {
             return Err(Error::parse(
@@ -615,9 +620,18 @@ fn read_ascii_faces<R: BufRead>(
             ));
         }
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        tokens.extend(trimmed_unsafe.split_whitespace());
-        read_ascii_face_element(element, &tokens, &mut values, faces)?;
+        let mut tokens_buf = [""; 64];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 64 {
+                tokens_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let tokens = &tokens_buf[..count];
+        read_ascii_face_element(element, tokens, &mut values, faces)?;
     }
     Ok(())
 }
@@ -821,33 +835,34 @@ fn write_ascii_cloud<W: Write>(writer: &mut W, cloud: &PointCloud, precision: us
         has_classification,
     )?;
 
-    let mut fields = Vec::new();
     for point in &cloud.points {
-        fields.clear();
-        fields.push(fmt_f64(point.position.x, precision));
-        fields.push(fmt_f64(point.position.y, precision));
-        fields.push(fmt_f64(point.position.z, precision));
+        crate::io::write_fmt_f64(writer, point.position.x, precision)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.y, precision)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.z, precision)?;
         if has_normals {
             let normal = point.normal.unwrap_or(Vec3::ZERO);
-            fields.push(fmt_f64(normal.x, precision));
-            fields.push(fmt_f64(normal.y, precision));
-            fields.push(fmt_f64(normal.z, precision));
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.x, precision)?;
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.y, precision)?;
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.z, precision)?;
         }
         if has_intensity {
             let intensity = point.intensity.unwrap_or(0.0);
-            fields.push(format!("{:.*}", precision, intensity));
+            write!(writer, " {:.*}", precision, intensity)?;
         }
         if has_color {
             let color = point.color.unwrap_or(Color::new(0, 0, 0));
-            fields.push(color.red.to_string());
-            fields.push(color.green.to_string());
-            fields.push(color.blue.to_string());
+            write!(writer, " {} {} {}", color.red, color.green, color.blue)?;
         }
         if has_classification {
             let class = point.classification.unwrap_or(0);
-            fields.push(class.to_string());
+            write!(writer, " {}", class)?;
         }
-        writeln!(writer, "{}", fields.join(" "))?;
+        writeln!(writer)?;
     }
     Ok(())
 }
@@ -866,25 +881,26 @@ fn write_ascii_mesh<W: Write>(writer: &mut W, mesh: &Mesh, precision: usize) -> 
         false,
     )?;
 
-    let mut fields = Vec::new();
     for vertex in &mesh.vertices {
-        fields.clear();
-        fields.push(fmt_f64(vertex.position.x, precision));
-        fields.push(fmt_f64(vertex.position.y, precision));
-        fields.push(fmt_f64(vertex.position.z, precision));
+        crate::io::write_fmt_f64(writer, vertex.position.x, precision)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, vertex.position.y, precision)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, vertex.position.z, precision)?;
         if has_normals {
             let normal = vertex.normal.unwrap_or(Vec3::ZERO);
-            fields.push(fmt_f64(normal.x, precision));
-            fields.push(fmt_f64(normal.y, precision));
-            fields.push(fmt_f64(normal.z, precision));
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.x, precision)?;
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.y, precision)?;
+            write!(writer, " ")?;
+            crate::io::write_fmt_f64(writer, normal.z, precision)?;
         }
         if has_color {
             let color = vertex.color.unwrap_or(Color::new(0, 0, 0));
-            fields.push(color.red.to_string());
-            fields.push(color.green.to_string());
-            fields.push(color.blue.to_string());
+            write!(writer, " {} {} {}", color.red, color.green, color.blue)?;
         }
-        writeln!(writer, "{}", fields.join(" "))?;
+        writeln!(writer)?;
     }
 
     for face in &mesh.faces {

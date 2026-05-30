@@ -130,6 +130,62 @@ pub enum AttributeValue {
     Text(String),
 }
 
+/// Wrapper for point attributes to optimize memory footprint and allocations.
+#[derive(Debug, Default, PartialEq)]
+pub struct PointAttributes(pub Option<Box<BTreeMap<String, AttributeValue>>>);
+
+impl Clone for PointAttributes {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(self.0.as_ref().map(|map| Box::new((**map).clone())))
+    }
+}
+
+impl std::ops::Deref for PointAttributes {
+    type Target = BTreeMap<String, AttributeValue>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        static EMPTY: std::sync::OnceLock<BTreeMap<String, AttributeValue>> = std::sync::OnceLock::new();
+        let empty = EMPTY.get_or_init(BTreeMap::new);
+        match &self.0 {
+            Some(map) => map,
+            None => empty,
+        }
+    }
+}
+
+impl std::ops::DerefMut for PointAttributes {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        if self.0.is_none() {
+            self.0 = Some(Box::default());
+        }
+        self.0.as_mut().unwrap()
+    }
+}
+
+impl From<BTreeMap<String, AttributeValue>> for PointAttributes {
+    #[inline]
+    fn from(map: BTreeMap<String, AttributeValue>) -> Self {
+        if map.is_empty() {
+            Self(None)
+        } else {
+            Self(Some(Box::new(map)))
+        }
+    }
+}
+
+impl From<PointAttributes> for BTreeMap<String, AttributeValue> {
+    #[inline]
+    fn from(attrs: PointAttributes) -> Self {
+        match attrs.0 {
+            Some(boxed) => *boxed,
+            None => BTreeMap::new(),
+        }
+    }
+}
+
 /// Normalized LiDAR/point-cloud point.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
@@ -142,7 +198,7 @@ pub struct Point {
     pub gps_time: Option<f64>,
     pub scan_angle: Option<f32>,
     pub normal: Option<Vec3>,
-    pub attributes: BTreeMap<String, AttributeValue>,
+    pub attributes: PointAttributes,
 }
 
 impl Point {
@@ -158,7 +214,7 @@ impl Point {
             gps_time: None,
             scan_angle: None,
             normal: None,
-            attributes: BTreeMap::new(),
+            attributes: PointAttributes::default(),
         }
     }
 

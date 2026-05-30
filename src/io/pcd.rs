@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
-use crate::io::{fmt_f64, PcdEncoding, PcdOptions};
+use crate::io::{PcdEncoding, PcdOptions};
 use crate::types::{Color, Geometry, Point, PointCloud, Vec3};
 use std::io::{BufRead, Read, Write};
 
@@ -270,9 +270,7 @@ fn read_ascii_points<R: BufRead>(
     let (layout, flat_fields) = PcdLayout::from_specs(specs);
     let values_per_point = flat_fields.len();
     let mut line = String::new();
-    let mut values = Vec::new();
     for row in 0..header.points {
-        values.clear();
         line.clear();
         if reader.read_line(&mut line)? == 0 {
             return Err(Error::parse(
@@ -282,8 +280,17 @@ fn read_ascii_points<R: BufRead>(
             ));
         }
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        values.extend(trimmed_unsafe.split_whitespace());
+        let mut values_buf = [""; 64];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 64 {
+                values_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let values = &values_buf[..count];
         if values.len() < values_per_point {
             return Err(Error::parse(
                 Format::Pcd,
@@ -708,11 +715,37 @@ fn write_ascii<W: Write>(
     precision: usize,
 ) -> Result<()> {
     for point in &cloud.points {
-        let values: Vec<String> = fields
-            .iter()
-            .map(|field| field_value_text(point, field, precision))
-            .collect();
-        writeln!(writer, "{}", values.join(" "))?;
+        for (idx, field) in fields.iter().enumerate() {
+            if idx > 0 {
+                write!(writer, " ")?;
+            }
+            write_field_text(writer, point, field, precision)?;
+        }
+        writeln!(writer)?;
+    }
+    Ok(())
+}
+
+fn write_field_text<W: Write>(
+    writer: &mut W,
+    point: &Point,
+    field: &WriteField,
+    precision: usize,
+) -> Result<()> {
+    match field.kind {
+        WriteFieldKind::X => crate::io::write_fmt_f64(writer, point.position.x, precision)?,
+        WriteFieldKind::Y => crate::io::write_fmt_f64(writer, point.position.y, precision)?,
+        WriteFieldKind::Z => crate::io::write_fmt_f64(writer, point.position.z, precision)?,
+        WriteFieldKind::Intensity => {
+            write!(writer, "{:.*}", precision, point.intensity.unwrap_or(0.0))?
+        }
+        WriteFieldKind::Red => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).red)?,
+        WriteFieldKind::Green => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).green)?,
+        WriteFieldKind::Blue => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).blue)?,
+        WriteFieldKind::Classification => write!(writer, "{}", point.classification.unwrap_or(0))?,
+        WriteFieldKind::NormalX => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).x, precision)?,
+        WriteFieldKind::NormalY => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).y, precision)?,
+        WriteFieldKind::NormalZ => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).z, precision)?,
     }
     Ok(())
 }
@@ -724,22 +757,6 @@ fn write_binary<W: Write>(writer: &mut W, cloud: &PointCloud, fields: &[WriteFie
         }
     }
     Ok(())
-}
-
-fn field_value_text(point: &Point, field: &WriteField, precision: usize) -> String {
-    match field.kind {
-        WriteFieldKind::X => fmt_f64(point.position.x, precision),
-        WriteFieldKind::Y => fmt_f64(point.position.y, precision),
-        WriteFieldKind::Z => fmt_f64(point.position.z, precision),
-        WriteFieldKind::Intensity => format!("{:.*}", precision, point.intensity.unwrap_or(0.0)),
-        WriteFieldKind::Red => point.color.unwrap_or(Color::new(0, 0, 0)).red.to_string(),
-        WriteFieldKind::Green => point.color.unwrap_or(Color::new(0, 0, 0)).green.to_string(),
-        WriteFieldKind::Blue => point.color.unwrap_or(Color::new(0, 0, 0)).blue.to_string(),
-        WriteFieldKind::Classification => point.classification.unwrap_or(0).to_string(),
-        WriteFieldKind::NormalX => fmt_f64(point.normal.unwrap_or(Vec3::ZERO).x, precision),
-        WriteFieldKind::NormalY => fmt_f64(point.normal.unwrap_or(Vec3::ZERO).y, precision),
-        WriteFieldKind::NormalZ => fmt_f64(point.normal.unwrap_or(Vec3::ZERO).z, precision),
-    }
 }
 
 fn write_field_binary<W: Write>(writer: &mut W, point: &Point, field: &WriteField) -> Result<()> {

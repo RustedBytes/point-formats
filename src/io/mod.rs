@@ -52,14 +52,55 @@ pub enum Delimiter {
 
 impl Delimiter {
     #[inline]
-    pub(crate) fn split_into<'a>(self, line: &'a str, fields: &mut Vec<&'a str>) {
-        fields.clear();
+    pub(crate) fn split_into_slice<'a>(self, line: &'a str, fields: &mut [&'a str]) -> usize {
+        let mut count = 0;
+        let limit = fields.len();
         match self {
-            Self::Auto => Self::detect(line).split_into(line, fields),
-            Self::Whitespace => fields.extend(line.split_whitespace()),
-            Self::Comma => fields.extend(line.split(',').map(str::trim)),
-            Self::Tab => fields.extend(line.split('\t').map(str::trim)),
-            Self::Semicolon => fields.extend(line.split(';').map(str::trim)),
+            Self::Auto => Self::detect(line).split_into_slice(line, fields),
+            Self::Whitespace => {
+                for part in line.split_whitespace() {
+                    if count < limit {
+                        fields[count] = part;
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
+            Self::Comma => {
+                for part in line.split(',') {
+                    if count < limit {
+                        fields[count] = part.trim();
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
+            Self::Tab => {
+                for part in line.split('\t') {
+                    if count < limit {
+                        fields[count] = part.trim();
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
+            Self::Semicolon => {
+                for part in line.split(';') {
+                    if count < limit {
+                        fields[count] = part.trim();
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
         }
     }
 
@@ -480,26 +521,34 @@ fn as_cloud_for_point_format(
     }
 }
 
+#[cold]
+#[inline(never)]
+fn numeric_parse_error(format: Format, line: usize, name: &str, value: &str) -> Error {
+    Error::parse(
+        format,
+        line,
+        format!("expected numeric {name}, got '{value}'"),
+    )
+}
+
 #[inline]
 pub(crate) fn parse_f64(format: Format, line: usize, name: &str, value: &str) -> Result<f64> {
-    value.parse::<f64>().map_err(|_| {
-        Error::parse(
-            format,
-            line,
-            format!("expected numeric {name}, got '{value}'"),
-        )
-    })
+    value.parse::<f64>().map_err(|_| numeric_parse_error(format, line, name, value))
 }
 
 #[inline]
 pub(crate) fn parse_f32(format: Format, line: usize, name: &str, value: &str) -> Result<f32> {
-    value.parse::<f32>().map_err(|_| {
-        Error::parse(
-            format,
-            line,
-            format!("expected numeric {name}, got '{value}'"),
-        )
-    })
+    value.parse::<f32>().map_err(|_| numeric_parse_error(format, line, name, value))
+}
+
+#[cold]
+#[inline(never)]
+fn range_parse_error(format: Format, line: usize, name: &str, value: &str, limit: &str) -> Error {
+    Error::parse(
+        format,
+        line,
+        format!("expected {name} in range {limit}, got '{value}'"),
+    )
 }
 
 #[inline]
@@ -511,11 +560,7 @@ pub(crate) fn parse_u8(format: Format, line: usize, name: &str, value: &str) -> 
     if as_float.fract() == 0.0 && (0.0..=u8::MAX as f64).contains(&as_float) {
         Ok(as_float as u8)
     } else {
-        Err(Error::parse(
-            format,
-            line,
-            format!("expected {name} in range 0..255, got '{value}'"),
-        ))
+        Err(range_parse_error(format, line, name, value, "0..255"))
     }
 }
 
@@ -528,11 +573,16 @@ pub(crate) fn parse_u16(format: Format, line: usize, name: &str, value: &str) ->
     if as_float.fract() == 0.0 && (0.0..=u16::MAX as f64).contains(&as_float) {
         Ok(as_float as u16)
     } else {
-        Err(Error::parse(
-            format,
-            line,
-            format!("expected {name} in range 0..65535, got '{value}'"),
-        ))
+        Err(range_parse_error(format, line, name, value, "0..65535"))
+    }
+}
+
+#[inline]
+pub(crate) fn write_fmt_f64<W: std::io::Write>(writer: &mut W, value: f64, precision: usize) -> std::io::Result<()> {
+    if value == 0.0 {
+        write!(writer, "{:.*}", precision, 0.0)
+    } else {
+        write!(writer, "{:.*}", precision, value)
     }
 }
 

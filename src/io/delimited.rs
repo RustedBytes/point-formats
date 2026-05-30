@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::io::{
-    fmt_f64, parse_f32, parse_f64, parse_u16, ColumnMapping, DelimitedOptions, Delimiter,
+    parse_f32, parse_f64, parse_u16, ColumnMapping, DelimitedOptions, Delimiter,
 };
 use crate::types::{Color, Metadata, Point, PointCloud, Vec3};
 use std::io::{BufRead, Write};
@@ -20,11 +20,9 @@ pub fn read<R: BufRead>(
     let mut header_decided = options.has_header;
 
     let mut line = String::new();
-    let mut fields = Vec::new();
     let mut line_no = 0;
 
     loop {
-        fields.clear();
         line.clear();
         let bytes_read = reader.read_line(&mut line)?;
         if bytes_read == 0 {
@@ -32,18 +30,19 @@ pub fn read<R: BufRead>(
         }
         line_no += 1;
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty()
-            || trimmed_unsafe.starts_with('#')
-            || trimmed_unsafe.starts_with("//")
+        if trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("//")
         {
             continue;
         }
 
         if delimiter == Delimiter::Auto {
-            delimiter = Delimiter::detect(trimmed_unsafe);
+            delimiter = Delimiter::detect(trimmed);
         }
-        delimiter.split_into(trimmed_unsafe, &mut fields);
+        let mut fields_buf = [""; 64];
+        let fields_len = delimiter.split_into_slice(trimmed, &mut fields_buf);
+        let fields = &fields_buf[..fields_len];
         if fields.is_empty() {
             continue;
         }
@@ -51,11 +50,11 @@ pub fn read<R: BufRead>(
         if !first_data_seen {
             let line_is_header = match header_decided {
                 Some(value) => value,
-                None => !looks_like_point_line(format, line_no, &mapping, &fields),
+                None => !looks_like_point_line(format, line_no, &mapping, fields),
             };
             header_decided = Some(line_is_header);
             if line_is_header {
-                if let Some(header_mapping) = ColumnMapping::from_header(&fields) {
+                if let Some(header_mapping) = ColumnMapping::from_header(fields) {
                     mapping = header_mapping;
                 } else {
                     return Err(Error::parse(
@@ -70,7 +69,7 @@ pub fn read<R: BufRead>(
             first_data_seen = true;
         }
 
-        let point = parse_point_fields(format, line_no, &mapping, &fields)?;
+        let point = parse_point_fields(format, line_no, &mapping, fields)?;
         cloud.points.push(point);
     }
 
@@ -122,58 +121,51 @@ pub fn write<W: Write>(
     }
 
     for point in &cloud.points {
-        let mut fields = vec![
-            fmt_f64(point.position.x, options.precision),
-            fmt_f64(point.position.y, options.precision),
-            fmt_f64(point.position.z, options.precision),
-        ];
+        crate::io::write_fmt_f64(writer, point.position.x, options.precision)?;
+        write!(writer, "{}", sep)?;
+        crate::io::write_fmt_f64(writer, point.position.y, options.precision)?;
+        write!(writer, "{}", sep)?;
+        crate::io::write_fmt_f64(writer, point.position.z, options.precision)?;
+
         if has_intensity {
-            fields.push(
-                point
-                    .intensity
-                    .map(|v| format!("{:.*}", options.precision, v))
-                    .unwrap_or_default(),
-            );
+            write!(writer, "{}", sep)?;
+            if let Some(v) = point.intensity {
+                write!(writer, "{:.*}", options.precision, v)?;
+            }
         }
         if has_color {
+            write!(writer, "{}", sep)?;
             if let Some(color) = point.color {
-                fields.extend([
-                    color.red.to_string(),
-                    color.green.to_string(),
-                    color.blue.to_string(),
-                ]);
+                write!(writer, "{}{}{}{}{}", color.red, sep, color.green, sep, color.blue)?;
             } else {
-                fields.extend([String::new(), String::new(), String::new()]);
+                write!(writer, "{}{}", sep, sep)?;
             }
         }
         if has_classification {
-            fields.push(
-                point
-                    .classification
-                    .map(|v| v.to_string())
-                    .unwrap_or_default(),
-            );
-        }
-        if has_gps_time {
-            fields.push(
-                point
-                    .gps_time
-                    .map(|v| fmt_f64(v, options.precision))
-                    .unwrap_or_default(),
-            );
-        }
-        if has_normals {
-            if let Some(normal) = point.normal {
-                fields.extend([
-                    fmt_f64(normal.x, options.precision),
-                    fmt_f64(normal.y, options.precision),
-                    fmt_f64(normal.z, options.precision),
-                ]);
-            } else {
-                fields.extend([String::new(), String::new(), String::new()]);
+            write!(writer, "{}", sep)?;
+            if let Some(v) = point.classification {
+                write!(writer, "{}", v)?;
             }
         }
-        writeln!(writer, "{}", fields.join(sep))?;
+        if has_gps_time {
+            write!(writer, "{}", sep)?;
+            if let Some(v) = point.gps_time {
+                crate::io::write_fmt_f64(writer, v, options.precision)?;
+            }
+        }
+        if has_normals {
+            write!(writer, "{}", sep)?;
+            if let Some(normal) = point.normal {
+                crate::io::write_fmt_f64(writer, normal.x, options.precision)?;
+                write!(writer, "{}", sep)?;
+                crate::io::write_fmt_f64(writer, normal.y, options.precision)?;
+                write!(writer, "{}", sep)?;
+                crate::io::write_fmt_f64(writer, normal.z, options.precision)?;
+            } else {
+                write!(writer, "{}{}", sep, sep)?;
+            }
+        }
+        writeln!(writer)?;
     }
     Ok(())
 }

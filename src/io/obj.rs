@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
-use crate::io::{fmt_f64, parse_f64};
+use crate::io::parse_f64;
 use crate::types::{Color, Face, Geometry, Mesh, Point, PointCloud, Vec3, Vertex};
 use std::io::{BufRead, Write};
 
@@ -11,11 +11,9 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<Geometry> {
     let mut comments = Vec::new();
 
     let mut line = String::new();
-    let mut parts = Vec::new();
     let mut line_no = 0;
 
     loop {
-        parts.clear();
         line.clear();
         let bytes_read = reader.read_line(&mut line)?;
         if bytes_read == 0 {
@@ -23,15 +21,24 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<Geometry> {
         }
         line_no += 1;
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty() {
+        if trimmed.is_empty() {
             continue;
         }
-        if trimmed_unsafe.starts_with('#') {
-            comments.push(trimmed_unsafe.trim_start_matches('#').trim().to_string());
+        if trimmed.starts_with('#') {
+            comments.push(trimmed.trim_start_matches('#').trim().to_string());
             continue;
         }
-        parts.extend(trimmed_unsafe.split_whitespace());
+        let mut parts_buf = [""; 16];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 16 {
+                parts_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let parts = &parts_buf[..count];
         match parts.first().copied() {
             Some("v") => vertices.push(parse_vertex(line_no, &parts[1..])?),
             Some("vn") => normals.push(parse_normal(line_no, &parts[1..])?),
@@ -89,13 +96,13 @@ pub fn write<W: Write>(writer: &mut W, geometry: &Geometry) -> Result<()> {
             }
             for vertex in &mesh.vertices {
                 if let Some(normal) = vertex.normal {
-                    writeln!(
-                        writer,
-                        "vn {} {} {}",
-                        fmt_f64(normal.x, 9),
-                        fmt_f64(normal.y, 9),
-                        fmt_f64(normal.z, 9)
-                    )?;
+                    write!(writer, "vn ")?;
+                    crate::io::write_fmt_f64(writer, normal.x, 9)?;
+                    write!(writer, " ")?;
+                    crate::io::write_fmt_f64(writer, normal.y, 9)?;
+                    write!(writer, " ")?;
+                    crate::io::write_fmt_f64(writer, normal.z, 9)?;
+                    writeln!(writer)?;
                 }
             }
             for face in &mesh.faces {
@@ -212,22 +219,20 @@ fn parse_face_index(line_no: usize, token: &str, vertex_count: usize) -> Result<
 }
 
 fn write_vertex<W: Write>(writer: &mut W, position: Vec3, color: Option<Color>) -> Result<()> {
-    write!(
-        writer,
-        "v {} {} {}",
-        fmt_f64(position.x, 9),
-        fmt_f64(position.y, 9),
-        fmt_f64(position.z, 9)
-    )?;
+    write!(writer, "v ")?;
+    crate::io::write_fmt_f64(writer, position.x, 9)?;
+    write!(writer, " ")?;
+    crate::io::write_fmt_f64(writer, position.y, 9)?;
+    write!(writer, " ")?;
+    crate::io::write_fmt_f64(writer, position.z, 9)?;
     if let Some(color) = color {
         let rgb = color.to_unit_rgb();
-        write!(
-            writer,
-            " {} {} {}",
-            fmt_f64(rgb[0], 9),
-            fmt_f64(rgb[1], 9),
-            fmt_f64(rgb[2], 9)
-        )?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, rgb[0], 9)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, rgb[1], 9)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, rgb[2], 9)?;
     }
     writeln!(writer)?;
     Ok(())

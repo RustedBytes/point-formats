@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
-use crate::io::{fmt_f64, parse_f32, parse_f64, parse_u16};
+use crate::io::{parse_f32, parse_f64, parse_u16};
 use crate::types::{Color, Point, PointCloud};
 use std::io::{BufRead, Write};
 
@@ -12,11 +12,9 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
     let mut first_payload_line = true;
 
     let mut line = String::new();
-    let mut parts = Vec::new();
     let mut line_no = 0;
 
     loop {
-        parts.clear();
         line.clear();
         let bytes_read = reader.read_line(&mut line)?;
         if bytes_read == 0 {
@@ -24,15 +22,24 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
         }
         line_no += 1;
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty()
-            || trimmed_unsafe.starts_with('#')
-            || trimmed_unsafe.starts_with("//")
+        if trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("//")
         {
             continue;
         }
 
-        parts.extend(trimmed_unsafe.split_whitespace());
+        let mut parts_buf = [""; 16];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 16 {
+                parts_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let parts = &parts_buf[..count];
         if parts.is_empty() {
             continue;
         }
@@ -44,7 +51,7 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
             }
         }
         first_payload_line = false;
-        cloud.points.push(parse_pts_point(line_no, &parts)?);
+        cloud.points.push(parse_pts_point(line_no, parts)?);
     }
 
     if let Some(expected) = expected_count {
@@ -64,13 +71,11 @@ pub fn write<W: Write>(writer: &mut W, cloud: &PointCloud) -> Result<()> {
     let has_intensity = cloud.has_intensity();
     let has_color = cloud.has_color();
     for point in &cloud.points {
-        write!(
-            writer,
-            "{} {} {}",
-            fmt_f64(point.position.x, 6),
-            fmt_f64(point.position.y, 6),
-            fmt_f64(point.position.z, 6)
-        )?;
+        crate::io::write_fmt_f64(writer, point.position.x, 6)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.y, 6)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.z, 6)?;
         if has_intensity {
             write!(writer, " {}", point.intensity.unwrap_or(0.0))?;
         }

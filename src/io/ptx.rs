@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
-use crate::io::{fmt_f64, parse_f32, parse_f64, parse_u16};
+use crate::io::{parse_f32, parse_f64, parse_u16};
 use crate::types::{Color, Point, PointCloud};
 use std::io::{BufRead, Write};
 
@@ -39,7 +39,17 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
     let mut transform = [[0.0_f64; 4]; 4];
     for row in 0..4 {
         let (l_no, text) = &header_lines[6 + row];
-        let parts: Vec<&str> = text.split_whitespace().collect();
+        let mut parts_buf = [""; 16];
+        let mut count = 0;
+        for part in text.split_whitespace() {
+            if count < 16 {
+                parts_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let parts = &parts_buf[..count];
         if parts.len() != 4 {
             return Err(Error::parse(
                 Format::Ptx,
@@ -57,9 +67,7 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
     cloud.metadata.point_count_hint = Some(expected_points);
     cloud.metadata.scanner_transform = Some(transform);
 
-    let mut parts = Vec::new();
     while cloud.points.len() < expected_points {
-        parts.clear();
         line.clear();
         let bytes_read = reader.read_line(&mut line)?;
         if bytes_read == 0 {
@@ -67,14 +75,23 @@ pub fn read<R: BufRead>(reader: &mut R) -> Result<PointCloud> {
         }
         line_no += 1;
         let trimmed = line.trim();
-        let trimmed_unsafe: &'static str = unsafe { &*(trimmed as *const str) };
-        if trimmed_unsafe.is_empty()
-            || trimmed_unsafe.starts_with('#')
-            || trimmed_unsafe.starts_with("//")
+        if trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("//")
         {
             continue;
         }
-        parts.extend(trimmed_unsafe.split_whitespace());
+        let mut parts_buf = [""; 16];
+        let mut count = 0;
+        for part in trimmed.split_whitespace() {
+            if count < 16 {
+                parts_buf[count] = part;
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        let parts = &parts_buf[..count];
         if parts.len() < 3 {
             return Err(Error::parse(
                 Format::Ptx,
@@ -126,26 +143,24 @@ pub fn write<W: Write>(writer: &mut W, cloud: &PointCloud) -> Result<()> {
         [0.0, 0.0, 0.0, 1.0],
     ]);
     for row in transform {
-        writeln!(
-            writer,
-            "{} {} {} {}",
-            fmt_f64(row[0], 12),
-            fmt_f64(row[1], 12),
-            fmt_f64(row[2], 12),
-            fmt_f64(row[3], 12)
-        )?;
+        crate::io::write_fmt_f64(writer, row[0], 12)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, row[1], 12)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, row[2], 12)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, row[3], 12)?;
+        writeln!(writer)?;
     }
 
     let has_intensity = cloud.has_intensity();
     let has_color = cloud.has_color();
     for point in &cloud.points {
-        write!(
-            writer,
-            "{} {} {}",
-            fmt_f64(point.position.x, 6),
-            fmt_f64(point.position.y, 6),
-            fmt_f64(point.position.z, 6)
-        )?;
+        crate::io::write_fmt_f64(writer, point.position.x, 6)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.y, 6)?;
+        write!(writer, " ")?;
+        crate::io::write_fmt_f64(writer, point.position.z, 6)?;
         if has_intensity {
             write!(writer, " {}", point.intensity.unwrap_or(0.0))?;
         }
