@@ -268,12 +268,6 @@ impl Format {
             | Self::Rcp
             | Self::Rcs => FormatSupport::AdapterRequired,
 
-            #[cfg(not(feature = "gpkg"))]
-            Self::Gpkg => FormatSupport::AdapterRequired,
-
-            #[cfg(not(feature = "gltf"))]
-            Self::Gltf | Self::Glb => FormatSupport::AdapterRequired,
-
             #[cfg(not(feature = "robotics"))]
             Self::RosBag | Self::Ros2Bag | Self::PointCloud2 => FormatSupport::AdapterRequired,
         }
