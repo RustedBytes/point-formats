@@ -4,14 +4,17 @@ use std::env;
 use std::str::FromStr;
 
 fn main() {
-    if let Err(error) = run() {
+    if let Err(error) = run_with_args(env::args().skip(1)) {
         eprintln!("error: {error}");
         std::process::exit(2);
     }
 }
 
-fn run() -> Result<(), String> {
-    let mut args = env::args().skip(1).peekable();
+fn run_with_args<I>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut args = args.into_iter().peekable();
     if args.peek().is_none() {
         print_help();
         return Ok(());
@@ -100,5 +103,57 @@ fn list_formats() {
         let family = format!("{:?}", format.family());
         let support = format!("{:?}", format.support());
         println!("{:<16} {:<20} {}", format.name(), family, support);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_main_cli() {
+        // Test no args
+        assert!(run_with_args(vec![]).is_ok());
+
+        // Test help
+        assert!(run_with_args(vec!["--help".to_string()]).is_ok());
+        assert!(run_with_args(vec!["-h".to_string()]).is_ok());
+
+        // Test list formats
+        assert!(run_with_args(vec!["--list-formats".to_string()]).is_ok());
+
+        // Test invalid option
+        assert!(run_with_args(vec!["--invalid-option".to_string()]).is_err());
+
+        // Test unexpected positional argument
+        assert!(run_with_args(vec![
+            "in.xyz".to_string(),
+            "out.ply".to_string(),
+            "extra.ply".to_string(),
+        ])
+        .is_err());
+
+        // Test missing output path
+        assert!(run_with_args(vec!["in.xyz".to_string()]).is_err());
+
+        // Test valid options parsing, then fails on execution due to missing file (which is fine)
+        let res = run_with_args(vec![
+            "--allow-lossy".to_string(),
+            "--input-format".to_string(),
+            "xyz".to_string(),
+            "--output-format".to_string(),
+            "ply".to_string(),
+            "--binary-ply".to_string(),
+            "--ascii-ply".to_string(),
+            "--binary-pcd".to_string(),
+            "--ascii-pcd".to_string(),
+            "--ascii-stl".to_string(),
+            "--binary-stl".to_string(),
+            "nonexistent_file.xyz".to_string(),
+            "output_file.ply".to_string(),
+        ]);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(err.contains("No such file or directory") || err.contains("entity not found"));
     }
 }

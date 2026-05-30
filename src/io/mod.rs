@@ -653,3 +653,121 @@ pub(crate) fn read_u16_le<R: std::io::Read>(reader: &mut R) -> Result<u16> {
 pub(crate) fn read_u32_le<R: std::io::Read>(reader: &mut R) -> Result<u32> {
     Ok(u32::from_le_bytes(read_exact(reader)?))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_delimiter_logic() {
+        assert_eq!(Delimiter::detect("1,2,3"), Delimiter::Comma);
+        assert_eq!(Delimiter::detect("1;2;3"), Delimiter::Semicolon);
+        assert_eq!(Delimiter::detect("1\t2\t3"), Delimiter::Tab);
+        assert_eq!(Delimiter::detect("1 2 3"), Delimiter::Whitespace);
+
+        assert_eq!(Delimiter::Comma.as_str(), ",");
+        assert_eq!(Delimiter::Tab.as_str(), "\t");
+        assert_eq!(Delimiter::Semicolon.as_str(), ";");
+        assert_eq!(Delimiter::Auto.as_str(), " ");
+
+        let mut fields = [""; 4];
+        let count = Delimiter::Comma.split_into_slice("a, b , c", &mut fields);
+        assert_eq!(count, 3);
+        assert_eq!(fields[0], "a");
+        assert_eq!(fields[1], "b");
+        assert_eq!(fields[2], "c");
+
+        let count_tab = Delimiter::Tab.split_into_slice("a\tb\tc", &mut fields);
+        assert_eq!(count_tab, 3);
+        assert_eq!(fields[1], "b");
+
+        let count_semi = Delimiter::Semicolon.split_into_slice("a;b;c", &mut fields);
+        assert_eq!(count_semi, 3);
+        assert_eq!(fields[1], "b");
+
+        let count_white = Delimiter::Whitespace.split_into_slice("a b  c", &mut fields);
+        assert_eq!(count_white, 3);
+        assert_eq!(fields[2], "c");
+
+        let count_auto = Delimiter::Auto.split_into_slice("a,b,c", &mut fields);
+        assert_eq!(count_auto, 3);
+        assert_eq!(fields[1], "b");
+    }
+
+    #[test]
+    fn test_column_mapping() {
+        let header = [
+            "x",
+            "y",
+            "elevation",
+            "intensity",
+            "red",
+            "green",
+            "blue",
+            "classification",
+            "gps_time",
+            "normal_x",
+            "normal_y",
+            "normal_z",
+        ];
+        let mapping = ColumnMapping::from_header(&header).unwrap();
+        assert_eq!(mapping.x, 0);
+        assert_eq!(mapping.y, 1);
+        assert_eq!(mapping.z, 2);
+        assert_eq!(mapping.intensity, Some(3));
+        assert_eq!(mapping.red, Some(4));
+        assert_eq!(mapping.green, Some(5));
+        assert_eq!(mapping.blue, Some(6));
+        assert_eq!(mapping.classification, Some(7));
+        assert_eq!(mapping.gps_time, Some(8));
+        assert_eq!(mapping.normal_x, Some(9));
+
+        let bad_header = ["intensity"];
+        assert!(ColumnMapping::from_header(&bad_header).is_none());
+    }
+
+    #[test]
+    fn test_numeric_writing_and_parsing() {
+        let mut writer = Vec::new();
+        write_fmt_f64(&mut writer, 0.0, 4).unwrap();
+        assert_eq!(String::from_utf8(writer).unwrap(), "0.0000");
+
+        let mut writer2 = Vec::new();
+        write_fmt_f64(&mut writer2, 1.234, 2).unwrap();
+        assert_eq!(String::from_utf8(writer2).unwrap(), "1.23");
+
+        assert_eq!(fmt_f64(0.0, 3), "0.000");
+        assert_eq!(fmt_f64(-1.23, 1), "-1.2");
+
+        assert!(parse_f64(Format::Pts, 1, "test", "abc").is_err());
+        assert!(parse_f32(Format::Pts, 1, "test", "abc").is_err());
+
+        assert_eq!(parse_u8(Format::Pts, 1, "test", "123").unwrap(), 123);
+        assert_eq!(parse_u8(Format::Pts, 1, "test", "123.0").unwrap(), 123);
+        assert!(parse_u8(Format::Pts, 1, "test", "256").is_err());
+        assert!(parse_u8(Format::Pts, 1, "test", "abc").is_err());
+        assert!(parse_u8(Format::Pts, 1, "test", "1.5").is_err());
+
+        assert_eq!(parse_u16(Format::Pts, 1, "test", "1000").unwrap(), 1000);
+        assert_eq!(parse_u16(Format::Pts, 1, "test", "1000.0").unwrap(), 1000);
+        assert!(parse_u16(Format::Pts, 1, "test", "70000").is_err());
+        assert!(parse_u16(Format::Pts, 1, "test", "abc").is_err());
+        assert!(parse_u16(Format::Pts, 1, "test", "1.5").is_err());
+    }
+
+    #[test]
+    fn test_binary_helpers() {
+        let mut bin = Vec::new();
+        write_f32_le(&mut bin, 1.5f32).unwrap();
+        write_f64_le(&mut bin, 2.5f64).unwrap();
+        write_u16_le(&mut bin, 10u16).unwrap();
+        write_u32_le(&mut bin, 20u32).unwrap();
+
+        let mut cursor = Cursor::new(bin);
+        assert_eq!(read_f32_le(&mut cursor).unwrap(), 1.5f32);
+        assert_eq!(read_f64_le(&mut cursor).unwrap(), 2.5f64);
+        assert_eq!(read_u16_le(&mut cursor).unwrap(), 10u16);
+        assert_eq!(read_u32_le(&mut cursor).unwrap(), 20u32);
+    }
+}

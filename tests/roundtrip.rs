@@ -553,10 +553,7 @@ fn geotiff_roundtrip_test() {
 
 fn unique_temp_dir() -> PathBuf {
     let mut path = std::env::temp_dir();
-    path.push(format!(
-        "point_formats_test_{}",
-        uuid::Uuid::new_v4()
-    ));
+    path.push(format!("point_formats_test_{}", uuid::Uuid::new_v4()));
     path
 }
 

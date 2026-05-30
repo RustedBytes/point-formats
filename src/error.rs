@@ -105,3 +105,59 @@ impl From<rusqlite::Error> for Error {
         Self::invalid(format!("SQLite error: {error}"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_variants() {
+        let err_io = Error::from(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
+        assert!(err_io.to_string().contains("file not found"));
+
+        let err_unknown = Error::UnknownFormat {
+            path: PathBuf::from("test.unknown"),
+        };
+        assert!(err_unknown
+            .to_string()
+            .contains("could not infer file format"));
+
+        let err_unsupported = Error::unsupported(Format::NetCdf, "read", "use netcdf adapter");
+        assert!(err_unsupported
+            .to_string()
+            .contains("read is not supported for netcdf: use netcdf adapter"));
+
+        let err_parse_line = Error::parse(Format::Ply, 15, "bad keyword");
+        assert!(err_parse_line
+            .to_string()
+            .contains("failed to parse ply at line 15: bad keyword"));
+
+        let err_parse_no_line = Error::parse(Format::Ply, None, "bad header");
+        assert!(err_parse_no_line
+            .to_string()
+            .contains("failed to parse ply: bad header"));
+
+        let err_invalid = Error::invalid("corrupt");
+        assert!(err_invalid.to_string().contains("invalid data: corrupt"));
+
+        let err_lossy = Error::LossyConversionBlocked {
+            from: "mesh",
+            to: Format::Xyz,
+            reason: "discarding faces".to_string(),
+        };
+        assert!(err_lossy
+            .to_string()
+            .contains("refusing lossy conversion from mesh to xyz: discarding faces"));
+    }
+
+    #[cfg(feature = "gpkg")]
+    #[test]
+    fn test_sqlite_error_conversion() {
+        let sql_err = rusqlite::Error::QueryReturnedNoRows;
+        let err = Error::from(sql_err);
+        assert!(err.to_string().contains("Query returned no rows"));
+    }
+}
