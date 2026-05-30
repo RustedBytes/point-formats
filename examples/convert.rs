@@ -1,4 +1,4 @@
-use lidar_format_convert::{convert_path, ConvertOptions};
+use point_formats::{convert_path, ConvertOptions};
 use std::env;
 use std::path::Path;
 use std::time::Instant;

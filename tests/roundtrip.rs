@@ -1,5 +1,5 @@
-use lidar_format_convert::io::{self, PcdEncoding, PlyEncoding};
-use lidar_format_convert::{
+use point_formats::io::{self, PcdEncoding, PlyEncoding};
+use point_formats::{
     convert_path, Color, ConvertOptions, Face, Format, Geometry, Mesh, Point, PointCloud, Vec3,
     Vertex,
 };
@@ -554,7 +554,7 @@ fn geotiff_roundtrip_test() {
 fn unique_temp_dir() -> PathBuf {
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "lidar_format_convert_test_{}",
+        "point_formats_test_{}",
         uuid::Uuid::new_v4()
     ));
     path

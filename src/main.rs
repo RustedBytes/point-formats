@@ -1,5 +1,5 @@
-use lidar_format_convert::io::{PcdEncoding, PlyEncoding};
-use lidar_format_convert::{convert_path, ConvertOptions, Format};
+use point_formats::io::{PcdEncoding, PlyEncoding};
+use point_formats::{convert_path, ConvertOptions, Format};
 use std::env;
 use std::str::FromStr;
 

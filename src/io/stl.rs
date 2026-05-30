@@ -170,7 +170,7 @@ fn write_binary<W: Write>(writer: &mut W, mesh: &Mesh) -> Result<()> {
 }
 
 fn write_ascii<W: Write>(writer: &mut W, mesh: &Mesh) -> Result<()> {
-    writeln!(writer, "solid lidar_format_convert")?;
+    writeln!(writer, "solid point_formats")?;
     for face in &mesh.faces {
         let normal = face_normal(mesh, face);
         writeln!(
@@ -194,7 +194,7 @@ fn write_ascii<W: Write>(writer: &mut W, mesh: &Mesh) -> Result<()> {
         writeln!(writer, "    endloop")?;
         writeln!(writer, "  endfacet")?;
     }
-    writeln!(writer, "endsolid lidar_format_convert")?;
+    writeln!(writer, "endsolid point_formats")?;
     Ok(())
 }
 

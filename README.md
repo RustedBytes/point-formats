@@ -71,18 +71,18 @@ cargo run --bin lidar-convert -- --list-formats
 ## Library usage
 
 ```rust
-use lidar_format_convert::{convert_path, ConvertOptions};
+use point_formats::{convert_path, ConvertOptions};
 
 let report = convert_path("scan.xyz", "scan.ply", &ConvertOptions::default())?;
 println!("wrote {} points", report.points_written);
-# Ok::<(), lidar_format_convert::Error>(())
+# Ok::<(), point_formats::Error>(())
 ```
 
 For in-memory use:
 
 ```rust
-use lidar_format_convert::{Color, Geometry, Point, PointCloud};
-use lidar_format_convert::io::{self, PlyEncoding};
+use point_formats::{Color, Geometry, Point, PointCloud};
+use point_formats::io::{self, PlyEncoding};
 
 let cloud = PointCloud::new(vec![
     Point::new(1.0, 2.0, 3.0).with_color(Color::new(255, 128, 0)),
@@ -92,7 +92,7 @@ let mut bytes = Vec::new();
 let mut options = io::PlyOptions::default();
 options.encoding = PlyEncoding::Ascii;
 io::ply::write(&mut bytes, &geometry, &options)?;
-# Ok::<(), lidar_format_convert::Error>(())
+# Ok::<(), point_formats::Error>(())
 ```
 
 ## Semantic design choices

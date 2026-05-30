@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use lidar_format_convert::{convert_path, ConvertOptions};
+//! use point_formats::{convert_path, ConvertOptions};
 //!
 //! let report = convert_path(
 //!     "scan.xyz",
@@ -20,7 +20,7 @@
 //!     &ConvertOptions::default(),
 //! )?;
 //! println!("wrote {} points", report.points_written);
-//! # Ok::<(), lidar_format_convert::Error>(())
+//! # Ok::<(), point_formats::Error>(())
 //! ```
 
 pub mod adapters;

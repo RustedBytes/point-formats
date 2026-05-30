@@ -12,7 +12,7 @@ categories = ["science::geo", "encoding", "command-line-utilities"]
 readme = "README.md"
 
 [lib]
-name = "lidar_format_convert"
+name = "point_formats"
 path = "src/lib.rs"
 
 [[bin]]
