@@ -1,8 +1,8 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::io::{
-    read_exact, read_f32_le, read_f64_le, read_u16_le, read_u32_le, write_f32_le,
-    write_f64_le, write_u16_le, write_u32_le, PlyEncoding, PlyOptions,
+    read_exact, read_f32_le, read_f64_le, read_u16_le, read_u32_le, write_f32_le, write_f64_le,
+    write_u16_le, write_u32_le, PlyEncoding, PlyOptions,
 };
 use crate::types::{Color, Face, Geometry, Mesh, Point, PointCloud, Vec3, Vertex};
 use std::io::{BufRead, Read, Write};

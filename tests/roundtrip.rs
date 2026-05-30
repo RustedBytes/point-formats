@@ -225,7 +225,12 @@ fn e57_roundtrip_point_cloud() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-#[cfg(any(feature = "las", feature = "laz", feature = "geospatial", feature = "shapefile"))]
+#[cfg(any(
+    feature = "las",
+    feature = "laz",
+    feature = "geospatial",
+    feature = "shapefile"
+))]
 fn sample_las_cloud() -> PointCloud {
     let mut p1 = Point::new(1.25, 2.5, -3.75)
         .with_intensity(42.0)

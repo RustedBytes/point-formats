@@ -739,13 +739,29 @@ fn write_field_text<W: Write>(
         WriteFieldKind::Intensity => {
             write!(writer, "{:.*}", precision, point.intensity.unwrap_or(0.0))?
         }
-        WriteFieldKind::Red => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).red)?,
-        WriteFieldKind::Green => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).green)?,
-        WriteFieldKind::Blue => write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).blue)?,
+        WriteFieldKind::Red => {
+            write!(writer, "{}", point.color.unwrap_or(Color::new(0, 0, 0)).red)?
+        }
+        WriteFieldKind::Green => write!(
+            writer,
+            "{}",
+            point.color.unwrap_or(Color::new(0, 0, 0)).green
+        )?,
+        WriteFieldKind::Blue => write!(
+            writer,
+            "{}",
+            point.color.unwrap_or(Color::new(0, 0, 0)).blue
+        )?,
         WriteFieldKind::Classification => write!(writer, "{}", point.classification.unwrap_or(0))?,
-        WriteFieldKind::NormalX => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).x, precision)?,
-        WriteFieldKind::NormalY => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).y, precision)?,
-        WriteFieldKind::NormalZ => crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).z, precision)?,
+        WriteFieldKind::NormalX => {
+            crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).x, precision)?
+        }
+        WriteFieldKind::NormalY => {
+            crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).y, precision)?
+        }
+        WriteFieldKind::NormalZ => {
+            crate::io::write_fmt_f64(writer, point.normal.unwrap_or(Vec3::ZERO).z, precision)?
+        }
     }
     Ok(())
 }

@@ -1,8 +1,6 @@
 use crate::error::{Error, Result};
 use crate::format::Format;
-use crate::io::{
-    parse_f32, parse_f64, parse_u16, ColumnMapping, DelimitedOptions, Delimiter,
-};
+use crate::io::{parse_f32, parse_f64, parse_u16, ColumnMapping, DelimitedOptions, Delimiter};
 use crate::types::{Color, Metadata, Point, PointCloud, Vec3};
 use std::io::{BufRead, Write};
 
@@ -30,10 +28,7 @@ pub fn read<R: BufRead>(
         }
         line_no += 1;
         let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed.starts_with('#')
-            || trimmed.starts_with("//")
-        {
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
             continue;
         }
 
@@ -136,7 +131,11 @@ pub fn write<W: Write>(
         if has_color {
             write!(writer, "{}", sep)?;
             if let Some(color) = point.color {
-                write!(writer, "{}{}{}{}{}", color.red, sep, color.green, sep, color.blue)?;
+                write!(
+                    writer,
+                    "{}{}{}{}{}",
+                    color.red, sep, color.green, sep, color.blue
+                )?;
             } else {
                 write!(writer, "{}{}", sep, sep)?;
             }

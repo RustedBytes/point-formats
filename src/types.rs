@@ -146,7 +146,8 @@ impl std::ops::Deref for PointAttributes {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        static EMPTY: std::sync::OnceLock<BTreeMap<String, AttributeValue>> = std::sync::OnceLock::new();
+        static EMPTY: std::sync::OnceLock<BTreeMap<String, AttributeValue>> =
+            std::sync::OnceLock::new();
         let empty = EMPTY.get_or_init(BTreeMap::new);
         match &self.0 {
             Some(map) => map,

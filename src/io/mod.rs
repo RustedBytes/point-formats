@@ -533,12 +533,16 @@ fn numeric_parse_error(format: Format, line: usize, name: &str, value: &str) -> 
 
 #[inline]
 pub(crate) fn parse_f64(format: Format, line: usize, name: &str, value: &str) -> Result<f64> {
-    value.parse::<f64>().map_err(|_| numeric_parse_error(format, line, name, value))
+    value
+        .parse::<f64>()
+        .map_err(|_| numeric_parse_error(format, line, name, value))
 }
 
 #[inline]
 pub(crate) fn parse_f32(format: Format, line: usize, name: &str, value: &str) -> Result<f32> {
-    value.parse::<f32>().map_err(|_| numeric_parse_error(format, line, name, value))
+    value
+        .parse::<f32>()
+        .map_err(|_| numeric_parse_error(format, line, name, value))
 }
 
 #[cold]
@@ -578,7 +582,11 @@ pub(crate) fn parse_u16(format: Format, line: usize, name: &str, value: &str) ->
 }
 
 #[inline]
-pub(crate) fn write_fmt_f64<W: std::io::Write>(writer: &mut W, value: f64, precision: usize) -> std::io::Result<()> {
+pub(crate) fn write_fmt_f64<W: std::io::Write>(
+    writer: &mut W,
+    value: f64,
+    precision: usize,
+) -> std::io::Result<()> {
     if value == 0.0 {
         write!(writer, "{:.*}", precision, 0.0)
     } else {
