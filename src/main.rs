@@ -81,7 +81,7 @@ where
 
 fn print_help() {
     println!(
-        "lidar-convert <input> <output> [options]\n\n\
+        "points-convert <input> <output> [options]\n\n\
 Options:\n\
   --input-format <fmt>    Override input format detection\n\
   --output-format <fmt>   Override output format detection\n\

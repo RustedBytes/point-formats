@@ -900,7 +900,7 @@ dependencies = [
 
 [[package]]
 name = "point-formats"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "copc-rs",
  "dbase",

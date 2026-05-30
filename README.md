@@ -62,10 +62,10 @@ The `Format` enum also represents formats that require heavy external SDKs, spec
 ## CLI
 
 ```bash
-cargo run --bin lidar-convert -- scan.xyz scan.ply
-cargo run --bin lidar-convert -- scan.pcd scan.ply --binary-ply
-cargo run --bin lidar-convert -- mesh.obj vertices.csv --allow-lossy
-cargo run --bin lidar-convert -- --list-formats
+cargo run --bin points-convert -- scan.xyz scan.ply
+cargo run --bin points-convert -- scan.pcd scan.ply --binary-ply
+cargo run --bin points-convert -- mesh.obj vertices.csv --allow-lossy
+cargo run --bin points-convert -- --list-formats
 ```
 
 ## Library usage

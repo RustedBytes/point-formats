@@ -848,14 +848,14 @@ fn test_convert_pipeline() {
 #[test]
 fn test_cli_binary() {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["run", "--bin", "lidar-convert", "--", "--help"]);
+    cmd.args(&["run", "--bin", "points-convert", "--", "--help"]);
     let out = cmd.output().unwrap();
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("lidar-convert <input> <output>"));
+    assert!(stdout.contains("points-convert <input> <output>"));
 
     let mut cmd2 = std::process::Command::new("cargo");
-    cmd2.args(&["run", "--bin", "lidar-convert", "--", "--list-formats"]);
+    cmd2.args(&["run", "--bin", "points-convert", "--", "--list-formats"]);
     let out2 = cmd2.output().unwrap();
     assert!(out2.status.success());
     let stdout2 = String::from_utf8(out2.stdout).unwrap();
@@ -863,7 +863,7 @@ fn test_cli_binary() {
 
     // Unknown options should return error (exit code 2)
     let mut cmd3 = std::process::Command::new("cargo");
-    cmd3.args(&["run", "--bin", "lidar-convert", "--", "--invalid-option"]);
+    cmd3.args(&["run", "--bin", "points-convert", "--", "--invalid-option"]);
     let out3 = cmd3.output().unwrap();
     assert_eq!(out3.status.code(), Some(2));
 }
