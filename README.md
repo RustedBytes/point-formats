@@ -67,6 +67,7 @@ cargo run --bin points-convert -- scan.pcd scan.ply --binary-ply
 cargo run --bin points-convert -- mesh.obj vertices.csv --allow-lossy
 cargo run --bin points-convert -- scan.xyz quantized.ply --quantize-step 0.01
 cargo run --bin points-convert -- scan.ply fp16-values.ply --quantize-dtype f16
+cargo run --bin points-convert -- --inspect scan.ply
 cargo run --bin points-convert -- --list-formats
 ```
 
