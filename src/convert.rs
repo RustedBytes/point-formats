@@ -74,6 +74,10 @@ pub fn convert_path(
         .map(Ok)
         .unwrap_or_else(|| Format::from_path(output))?;
 
+    if let Some(report) = crate::streaming::try_convert_path_streaming(input, output, options)? {
+        return Ok(report);
+    }
+
     let mut geometry = crate::io::read_path(input, input_format, &options.native)?;
     geometry.metadata_mut().source_format = Some(input_format);
     let points_read = geometry.point_count();

@@ -98,6 +98,27 @@ io::ply::write(&mut bytes, &geometry, &options)?;
 # Ok::<(), point_formats::Error>(())
 ```
 
+For large point-cloud files, use the streaming API or let `convert_path` choose
+it automatically when both formats can be streamed safely:
+
+```rust
+use point_formats::{convert_path_streaming, ConvertOptions};
+
+let report = convert_path_streaming(
+    "scan.pts",
+    "scan.ply",
+    &ConvertOptions::default(),
+)?;
+println!("streamed {} points", report.points_written);
+# Ok::<(), point_formats::Error>(())
+```
+
+Native streaming currently covers XYZ/TXT/CSV and PTS readers, plus
+XYZ/TXT/CSV/PTS/PLY/PCD writers when the destination header can be written from
+stream metadata. Downstream LAS/COPC/E57/vendor integrations can implement
+`StreamingCodec` and pass a `StreamingCodecRegistry` to
+`convert_path_with_streaming_adapters`.
+
 ## Semantic design choices
 
 - Coordinates are stored as `f64` to avoid losing precision when converting
@@ -175,8 +196,9 @@ assert_eq!(a.color, b.color);
 
 ## Known limitations
 
-- This is an in-memory native converter. Very large point clouds should use
-  streaming adapters that implement `adapters::Codec`.
+- PLY and PCD native readers still materialize complete files. Very large PLY,
+  PCD, LAS, COPC, E57, and vendor formats should use streaming adapters where
+  available.
 - Binary big-endian PLY and PCD `binary_compressed` are not implemented natively.
 - Raster outputs need an explicit gridding/interpolation policy and are therefore
   adapter-required.

@@ -85,7 +85,7 @@ pub fn write<W: Write>(writer: &mut W, cloud: &PointCloud) -> Result<()> {
     Ok(())
 }
 
-fn parse_pts_point(line_no: usize, parts: &[&str]) -> Result<Point> {
+pub(crate) fn parse_pts_point(line_no: usize, parts: &[&str]) -> Result<Point> {
     if parts.len() < 3 {
         return Err(Error::parse(
             Format::Pts,

@@ -29,6 +29,7 @@ pub mod error;
 pub mod format;
 pub mod io;
 pub mod quantizer;
+pub mod streaming;
 pub mod types;
 
 pub use convert::{convert_path, ConversionReport, ConvertOptions, GeometryPolicy};
@@ -38,6 +39,10 @@ pub use quantizer::{
     quantize_dtype_value, quantize_geometry, quantize_mesh, quantize_path, quantize_point,
     quantize_point_cloud, quantize_step_value, quantize_value, quantize_vec3, QuantizationReport,
     QuantizeDType, QuantizeMode, QuantizeOptions,
+};
+pub use streaming::{
+    convert_path_streaming, convert_path_with_streaming_adapters, PointFieldSet, PointStream,
+    PointStreamInfo, PointStreamWriter, StreamingCodec, StreamingCodecRegistry,
 };
 pub use types::{
     AttributeValue, Bounds3, Color, Face, Geometry, Mesh, Metadata, Point, PointCloud, Vec3, Vertex,

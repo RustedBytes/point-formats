@@ -1,7 +1,7 @@
 use point_formats::io::{self, PcdEncoding, PlyEncoding};
 use point_formats::{
-    convert_path, Color, ConvertOptions, Face, Format, Geometry, Mesh, Point, PointCloud, Vec3,
-    Vertex,
+    convert_path, convert_path_streaming, Color, ConvertOptions, Face, Format, Geometry, Mesh,
+    Point, PointCloud, Vec3, Vertex,
 };
 use std::fs;
 use std::io::Cursor;
@@ -147,6 +147,95 @@ fn convert_xyz_to_ply_file() {
     assert_eq!(report.output_format, Format::Ply);
     assert_eq!(report.points_written, 2);
     assert!(output.exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn streaming_csv_header_roundtrip() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.csv");
+    let output = dir.join("scan.xyz");
+    fs::write(
+        &input,
+        "x,y,z,intensity,red,green,blue,classification\n1,2,3,4,10,20,30,2\n5,6,7,8,40,50,60,3\n",
+    )
+    .unwrap();
+
+    let report = convert_path_streaming(&input, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report.input_format, Format::Csv);
+    assert_eq!(report.output_format, Format::Xyz);
+    assert_eq!(report.points_written, 2);
+
+    let decoded = io::read_path(&output, Format::Xyz, &io::NativeOptions::default()).unwrap();
+    assert_eq!(decoded.point_count(), 2);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn automatic_streaming_xyz_to_csv_large_file() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("large.xyz");
+    let output = dir.join("large.csv");
+    let mut data = String::new();
+    for i in 0..2_000 {
+        data.push_str(&format!("{i} {} {}\n", i + 1, i + 2));
+    }
+    fs::write(&input, data).unwrap();
+
+    let report = convert_path(&input, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report.points_read, 2_000);
+    assert_eq!(report.points_written, 2_000);
+
+    let first_line = fs::read_to_string(&output)
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap()
+        .to_string();
+    assert_eq!(first_line, "x,y,z");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn streaming_pts_to_ply_uses_count_hint() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.pts");
+    let output = dir.join("scan.ply");
+    fs::write(&input, "2\n1 2 3 4 10 20 30\n5 6 7 8 40 50 60\n").unwrap();
+
+    let report = convert_path_streaming(&input, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report.points_written, 2);
+
+    let decoded = io::read_path(&output, Format::Ply, &io::NativeOptions::default()).unwrap();
+    match decoded {
+        Geometry::PointCloud(cloud) => {
+            assert_eq!(cloud.points.len(), 2);
+            assert_eq!(cloud.points[0].intensity, Some(4.0));
+            assert_eq!(cloud.points[0].color, Some(Color::new(10, 20, 30)));
+        }
+        Geometry::Mesh(_) => panic!("expected point cloud"),
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn ply_mesh_conversion_falls_back_to_in_memory() {
+    let dir = unique_temp_dir();
+    fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("mesh.ply");
+    let output = dir.join("mesh.obj");
+    fs::write(
+        &input,
+        "ply\nformat ascii 1.0\nelement vertex 3\nproperty double x\nproperty double y\nproperty double z\nelement face 1\nproperty list uchar uint vertex_indices\nend_header\n0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n",
+    )
+    .unwrap();
+
+    let report = convert_path(&input, &output, &ConvertOptions::default()).unwrap();
+    assert_eq!(report.faces_written, 1);
+    assert!(fs::read_to_string(&output).unwrap().contains("f 1 2 3"));
     let _ = fs::remove_dir_all(&dir);
 }
 

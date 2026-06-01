@@ -1,9 +1,14 @@
 use point_formats::{
     adapters::{Codec, CodecRegistry},
+    streaming::{
+        convert_path_with_streaming_adapters, PointFieldSet, PointStream, PointStreamInfo,
+        PointStreamWriter, StreamingCodec, StreamingCodecRegistry,
+    },
     AttributeValue, Bounds3, Color, Error, Face, Format, FormatSupport, Geometry, Mesh, Point,
     PointCloud, Vec3, Vertex,
 };
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::str::FromStr;
 
 #[test]
@@ -272,6 +277,165 @@ fn test_codec_registry() {
 
     let registry2 = CodecRegistry::new().with_codec(Box::new(DummyCodec));
     assert!(registry2.reader(Format::Copc).is_some());
+}
+
+#[test]
+fn test_point_stream_info_fields() {
+    let cloud = PointCloud::new(vec![
+        Point::new(1.0, 2.0, 3.0).with_intensity(1.5),
+        Point::new(4.0, 5.0, 6.0)
+            .with_color(Color::new(1, 2, 3))
+            .with_classification(7)
+            .with_normal(Vec3::new(0.0, 0.0, 1.0)),
+    ]);
+    let info = PointStreamInfo::from_cloud(Format::Xyz, &cloud);
+    assert_eq!(info.source_format, Some(Format::Xyz));
+    assert_eq!(info.point_count_hint, Some(2));
+    assert!(info.fields.intensity);
+    assert!(info.fields.color);
+    assert!(info.fields.classification);
+    assert!(info.fields.normals);
+
+    let mut fields = PointFieldSet::default();
+    fields.include_point(&Point::new(0.0, 0.0, 0.0).with_intensity(3.0));
+    assert!(fields.intensity);
+    assert!(!fields.color);
+}
+
+struct DummyPointStream {
+    info: PointStreamInfo,
+    points: std::vec::IntoIter<Point>,
+}
+
+impl PointStream for DummyPointStream {
+    fn info(&self) -> &PointStreamInfo {
+        &self.info
+    }
+
+    fn next_point(&mut self) -> point_formats::Result<Option<Point>> {
+        Ok(self.points.next())
+    }
+}
+
+struct DummyPointWriter {
+    writer: std::io::BufWriter<std::fs::File>,
+}
+
+impl PointStreamWriter for DummyPointWriter {
+    fn write_point(&mut self, point: &Point) -> point_formats::Result<()> {
+        writeln!(
+            self.writer,
+            "{} {} {}",
+            point.position.x, point.position.y, point.position.z
+        )?;
+        Ok(())
+    }
+
+    fn finish(&mut self) -> point_formats::Result<()> {
+        self.writer.flush()?;
+        Ok(())
+    }
+}
+
+struct DummyStreamingCodec;
+
+impl StreamingCodec for DummyStreamingCodec {
+    fn can_stream_read(&self, format: Format) -> bool {
+        matches!(format, Format::Copc)
+    }
+
+    fn can_stream_write(&self, format: Format) -> bool {
+        matches!(format, Format::Copc)
+    }
+
+    fn open_point_stream(
+        &self,
+        _path: &std::path::Path,
+        format: Format,
+        _options: &point_formats::ConvertOptions,
+    ) -> point_formats::Result<Box<dyn PointStream>> {
+        let points = vec![Point::new(1.0, 2.0, 3.0), Point::new(4.0, 5.0, 6.0)];
+        let mut info = PointStreamInfo::new(format);
+        info.point_count_hint = Some(points.len());
+        info.metadata.point_count_hint = Some(points.len());
+        Ok(Box::new(DummyPointStream {
+            info,
+            points: points.into_iter(),
+        }))
+    }
+
+    fn create_point_writer(
+        &self,
+        path: &std::path::Path,
+        _format: Format,
+        _info: &PointStreamInfo,
+        _options: &point_formats::ConvertOptions,
+    ) -> point_formats::Result<Box<dyn PointStreamWriter>> {
+        Ok(Box::new(DummyPointWriter {
+            writer: std::io::BufWriter::new(std::fs::File::create(path)?),
+        }))
+    }
+}
+
+#[test]
+fn test_streaming_codec_registry() {
+    let mut registry = StreamingCodecRegistry::new();
+    assert!(registry.reader(Format::Copc).is_none());
+
+    registry.register(Box::new(DummyStreamingCodec));
+    assert!(registry.reader(Format::Copc).is_some());
+    assert!(registry.writer(Format::Copc).is_some());
+    assert!(registry.reader(Format::Xyz).is_none());
+}
+
+#[test]
+fn test_streaming_adapter_conversion() {
+    let mut dir = std::env::temp_dir();
+    dir.push(format!(
+        "point_formats_streaming_adapter_{}",
+        uuid::Uuid::new_v4()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("input.copc.laz");
+    let output = dir.join("output.copc.laz");
+    std::fs::write(&input, b"dummy").unwrap();
+
+    let options = point_formats::ConvertOptions {
+        input_format: Some(Format::Copc),
+        output_format: Some(Format::Copc),
+        ..Default::default()
+    };
+    let registry = StreamingCodecRegistry::new().with_codec(Box::new(DummyStreamingCodec));
+    let report =
+        convert_path_with_streaming_adapters(&input, &output, &options, &registry).unwrap();
+
+    assert_eq!(report.points_read, 2);
+    assert_eq!(std::fs::read_to_string(&output).unwrap().lines().count(), 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn test_streaming_unsupported_read_error() {
+    let mut dir = std::env::temp_dir();
+    dir.push(format!(
+        "point_formats_streaming_unsupported_{}",
+        uuid::Uuid::new_v4()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("mesh.ply");
+    let output = dir.join("out.xyz");
+    std::fs::write(
+        &input,
+        "ply\nformat ascii 1.0\nelement vertex 0\nproperty double x\nproperty double y\nproperty double z\nend_header\n",
+    )
+    .unwrap();
+
+    let err = point_formats::convert_path_streaming(&input, &output, &Default::default())
+        .expect_err("PLY has no native streaming reader yet");
+    assert!(err
+        .to_string()
+        .contains("stream read is not supported for ply"));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
