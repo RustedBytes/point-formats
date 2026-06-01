@@ -847,22 +847,96 @@ fn test_convert_pipeline() {
 
 #[test]
 fn test_quantizer_scalar_and_vector_rules() {
-    assert_eq!(point_formats::quantize_value(1.0, 0.5).unwrap(), 1.0);
-    assert_eq!(point_formats::quantize_value(1.25, 0.5).unwrap(), 1.5);
-    assert_eq!(point_formats::quantize_value(-1.25, 0.5).unwrap(), -1.5);
+    let step = point_formats::QuantizeMode::Step(0.5);
+    assert_eq!(point_formats::quantize_value(1.0, step).unwrap(), 1.0);
+    assert_eq!(point_formats::quantize_value(1.25, step).unwrap(), 1.5);
+    assert_eq!(point_formats::quantize_value(-1.25, step).unwrap(), -1.5);
 
-    let negative_zero = point_formats::quantize_value(-0.24, 0.5).unwrap();
+    let negative_zero = point_formats::quantize_value(-0.24, step).unwrap();
     assert_eq!(negative_zero, 0.0);
     assert_eq!(negative_zero.to_bits(), 0.0f64.to_bits());
 
-    let vec = point_formats::quantize_vec3(Vec3::new(0.24, 0.26, -0.26), 0.5).unwrap();
+    let vec = point_formats::quantize_vec3(Vec3::new(0.24, 0.26, -0.26), step).unwrap();
     assert_eq!(vec, Vec3::new(0.0, 0.5, -0.5));
 
-    assert!(point_formats::quantize_vec3(Vec3::ZERO, 0.0).is_err());
-    assert!(point_formats::quantize_vec3(Vec3::ZERO, -1.0).is_err());
-    assert!(point_formats::quantize_vec3(Vec3::ZERO, f64::NAN).is_err());
-    assert!(point_formats::quantize_vec3(Vec3::ZERO, f64::INFINITY).is_err());
-    assert!(point_formats::quantize_value(1.0, 0.0).is_err());
+    assert!(
+        point_formats::quantize_vec3(Vec3::ZERO, point_formats::QuantizeMode::Step(0.0)).is_err()
+    );
+    assert!(
+        point_formats::quantize_vec3(Vec3::ZERO, point_formats::QuantizeMode::Step(-1.0)).is_err()
+    );
+    assert!(
+        point_formats::quantize_vec3(Vec3::ZERO, point_formats::QuantizeMode::Step(f64::NAN))
+            .is_err()
+    );
+    assert!(point_formats::quantize_vec3(
+        Vec3::ZERO,
+        point_formats::QuantizeMode::Step(f64::INFINITY)
+    )
+    .is_err());
+    assert!(point_formats::quantize_value(1.0, point_formats::QuantizeMode::Step(0.0)).is_err());
+}
+
+#[test]
+fn test_quantizer_dtype_parsing_and_rules() {
+    use point_formats::{QuantizeDType, QuantizeMode};
+
+    assert_eq!(QuantizeDType::from_str("f16").unwrap(), QuantizeDType::F16);
+    assert_eq!(
+        QuantizeDType::from_str("float16").unwrap(),
+        QuantizeDType::F16
+    );
+    assert_eq!(
+        QuantizeDType::from_str("bfloat16").unwrap(),
+        QuantizeDType::Bf16
+    );
+    assert_eq!(QuantizeDType::from_str("f32").unwrap(), QuantizeDType::F32);
+    assert_eq!(
+        QuantizeDType::from_str("float64").unwrap(),
+        QuantizeDType::F64
+    );
+    assert_eq!(QuantizeDType::from_str("i8").unwrap(), QuantizeDType::Int8);
+    assert_eq!(QuantizeDType::from_str("u8").unwrap(), QuantizeDType::UInt8);
+    assert!(QuantizeDType::from_str("float8").is_err());
+    assert_eq!(QuantizeDType::F16.to_string(), "f16");
+    assert_eq!(
+        QuantizeMode::DType(QuantizeDType::UInt8).to_string(),
+        "uint8"
+    );
+
+    assert_eq!(
+        point_formats::quantize_value(1.0002, QuantizeMode::DType(QuantizeDType::F16)).unwrap(),
+        half::f16::from_f32(1.0002_f32).to_f32() as f64
+    );
+    assert_eq!(
+        point_formats::quantize_value(1.25, QuantizeMode::DType(QuantizeDType::Bf16)).unwrap(),
+        half::bf16::from_f32(1.25).to_f32() as f64
+    );
+    assert_eq!(
+        point_formats::quantize_value(1.00000001, QuantizeMode::DType(QuantizeDType::F32)).unwrap(),
+        1.00000001_f32 as f64
+    );
+    assert_eq!(
+        point_formats::quantize_value(1.00000001, QuantizeMode::DType(QuantizeDType::F64)).unwrap(),
+        1.00000001
+    );
+    assert_eq!(
+        point_formats::quantize_value(-1.5, QuantizeMode::DType(QuantizeDType::Int8)).unwrap(),
+        -2.0
+    );
+    assert_eq!(
+        point_formats::quantize_value(255.49, QuantizeMode::DType(QuantizeDType::UInt8)).unwrap(),
+        255.0
+    );
+    assert!(
+        point_formats::quantize_value(-1.0, QuantizeMode::DType(QuantizeDType::UInt8)).is_err()
+    );
+    assert!(
+        point_formats::quantize_value(128.0, QuantizeMode::DType(QuantizeDType::Int8)).is_err()
+    );
+    assert!(
+        point_formats::quantize_value(f64::NAN, QuantizeMode::DType(QuantizeDType::F16)).is_err()
+    );
 }
 
 #[test]
@@ -884,7 +958,8 @@ fn test_quantizer_preserves_point_cloud_attributes() {
     let mut cloud = PointCloud::new(vec![point]);
     cloud.metadata.comments.push("keep me".to_string());
 
-    point_formats::quantize_point_cloud(&mut cloud, 0.5).unwrap();
+    point_formats::quantize_point_cloud(&mut cloud, point_formats::QuantizeMode::Step(0.5))
+        .unwrap();
 
     let quantized = &cloud.points[0];
     assert_eq!(quantized.position, Vec3::new(1.0, -1.5, 0.0));
@@ -915,7 +990,8 @@ fn test_quantizer_preserves_mesh_faces() {
     );
     let mut geometry = Geometry::Mesh(mesh);
 
-    point_formats::quantize_geometry(&mut geometry, 0.5).unwrap();
+    point_formats::quantize_geometry(&mut geometry, point_formats::QuantizeMode::Step(0.5))
+        .unwrap();
 
     match geometry {
         Geometry::Mesh(mesh) => {
@@ -939,7 +1015,7 @@ fn test_quantize_path_writes_quantized_file() {
     std::fs::write(&input, "0.24 0.26 -0.26\n1.24 1.26 1.74\n").unwrap();
 
     let options = point_formats::QuantizeOptions {
-        step: 0.5,
+        mode: point_formats::QuantizeMode::Step(0.5),
         input_format: None,
         output_format: None,
         allow_lossy: false,
@@ -950,7 +1026,7 @@ fn test_quantize_path_writes_quantized_file() {
 
     assert_eq!(report.input_format, Format::Xyz);
     assert_eq!(report.output_format, Format::Ply);
-    assert_eq!(report.step, 0.5);
+    assert_eq!(report.mode, point_formats::QuantizeMode::Step(0.5));
     assert_eq!(report.points_read, 2);
     assert_eq!(report.points_written, 2);
     assert_eq!(report.faces_read, 0);

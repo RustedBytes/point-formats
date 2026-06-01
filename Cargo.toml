@@ -49,6 +49,7 @@ sensor = []
 
 
 [dependencies]
+half = "2.7"
 las = { version = "=0.9.4", optional = true }
 copc-rs = { version = "0.5.0", optional = true }
 e57 = { version = "0.11.12", optional = true }
@@ -63,4 +64,3 @@ rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 uuid = { version = "1.20", features = ["v4"] }
 
 [dev-dependencies]
-

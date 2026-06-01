@@ -1,5 +1,8 @@
 use point_formats::io::{PcdEncoding, PlyEncoding};
-use point_formats::{convert_path, quantize_path, ConvertOptions, Format, QuantizeOptions};
+use point_formats::{
+    convert_path, quantize_path, ConvertOptions, Format, QuantizeDType, QuantizeMode,
+    QuantizeOptions,
+};
 use std::env;
 use std::str::FromStr;
 
@@ -21,7 +24,7 @@ where
     }
 
     let mut options = ConvertOptions::default();
-    let mut quantize_step = None;
+    let mut quantize_mode = None;
     let mut input = None;
     let mut output = None;
 
@@ -55,7 +58,14 @@ where
                 let step = value.parse::<f64>().map_err(|_| {
                     format!("--quantize-step requires a numeric value, got '{value}'")
                 })?;
-                quantize_step = Some(step);
+                set_quantize_mode(&mut quantize_mode, QuantizeMode::Step(step))?;
+            }
+            "--quantize-dtype" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--quantize-dtype requires a value".to_string())?;
+                let dtype = QuantizeDType::from_str(&value).map_err(|error| error.to_string())?;
+                set_quantize_mode(&mut quantize_mode, QuantizeMode::DType(dtype))?;
             }
             "--binary-ply" => options.native.ply.encoding = PlyEncoding::BinaryLittleEndian,
             "--ascii-ply" => options.native.ply.encoding = PlyEncoding::Ascii,
@@ -78,9 +88,9 @@ where
 
     let input = input.ok_or_else(|| "missing input path".to_string())?;
     let output = output.ok_or_else(|| "missing output path".to_string())?;
-    if let Some(step) = quantize_step {
+    if let Some(mode) = quantize_mode {
         let quantize_options = QuantizeOptions {
-            step,
+            mode,
             input_format: options.input_format,
             output_format: options.output_format,
             allow_lossy: options.allow_lossy,
@@ -90,10 +100,10 @@ where
         let report =
             quantize_path(&input, &output, &quantize_options).map_err(|error| error.to_string())?;
         eprintln!(
-            "quantized {} -> {} at step {}: {} points, {} faces",
+            "quantized {} -> {} with {}: {} points, {} faces",
             report.input_format,
             report.output_format,
-            report.step,
+            report.mode,
             report.points_written,
             report.faces_written
         );
@@ -113,6 +123,15 @@ where
     Ok(())
 }
 
+fn set_quantize_mode(target: &mut Option<QuantizeMode>, mode: QuantizeMode) -> Result<(), String> {
+    if target.is_some() {
+        Err("--quantize-step and --quantize-dtype are mutually exclusive".to_string())
+    } else {
+        *target = Some(mode);
+        Ok(())
+    }
+}
+
 fn print_help() {
     println!(
         "points-convert <input> <output> [options]\n\n\
@@ -121,6 +140,7 @@ Options:\n\
   --output-format <fmt>   Override output format detection\n\
   --allow-lossy           Permit mesh->point conversion by dropping faces\n\
   --quantize-step <step>  Snap output coordinates to a grid step\n\
+  --quantize-dtype <dt>   Quantize output coordinates to f16/bf16/f32/f64/int8/uint8\n\
   --ascii-ply             Write ASCII PLY (default)\n\
   --binary-ply            Write binary little-endian PLY\n\
   --ascii-pcd             Write ASCII PCD (default)\n\
@@ -180,6 +200,23 @@ mod tests {
             "out.ply".to_string(),
         ])
         .is_err());
+        assert!(run_with_args(vec!["--quantize-dtype".to_string()]).is_err());
+        assert!(run_with_args(vec![
+            "--quantize-dtype".to_string(),
+            "float8".to_string(),
+            "in.xyz".to_string(),
+            "out.ply".to_string(),
+        ])
+        .is_err());
+        assert!(run_with_args(vec![
+            "--quantize-step".to_string(),
+            "0.5".to_string(),
+            "--quantize-dtype".to_string(),
+            "f16".to_string(),
+            "in.xyz".to_string(),
+            "out.ply".to_string(),
+        ])
+        .is_err());
 
         // Test valid options parsing, then fails on execution due to missing file (which is fine)
         let res = run_with_args(vec![
@@ -223,6 +260,28 @@ mod tests {
 
         let contents = std::fs::read_to_string(&output).unwrap();
         assert!(contents.contains("0.000000 0.500000 -0.500000"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_main_cli_quantizes_dtype_file() {
+        let dir = std::env::temp_dir().join(format!("points_cli_dtype_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("scan.xyz");
+        let output = dir.join("scan.xyz");
+        std::fs::write(&input, "1.0002 2.0002 3.0002\n").unwrap();
+
+        let result = run_with_args(vec![
+            input.display().to_string(),
+            output.display().to_string(),
+            "--quantize-dtype".to_string(),
+            "f16".to_string(),
+        ]);
+        assert!(result.is_ok());
+
+        let contents = std::fs::read_to_string(&output).unwrap();
+        assert!(contents.contains("1.000000 2.000000 3.000000"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }

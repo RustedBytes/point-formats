@@ -908,6 +908,7 @@ dependencies = [
  "e57",
  "geojson",
  "gltf",
+ "half",
  "las",
  "rusqlite",
  "serde_json",
