@@ -84,7 +84,7 @@ fn test_point_attributes() {
     // Test From/Into
     let mut map = BTreeMap::new();
     map.insert("a".to_string(), AttributeValue::UInt(100));
-    map.insert("b".to_string(), AttributeValue::Float(3.14));
+    map.insert("b".to_string(), AttributeValue::Float(3.125));
     map.insert("c".to_string(), AttributeValue::Text("hello".to_string()));
 
     let point_attrs = point_formats::types::PointAttributes::from(map.clone());
@@ -846,16 +846,139 @@ fn test_convert_pipeline() {
 }
 
 #[test]
+fn test_quantizer_scalar_and_vector_rules() {
+    assert_eq!(point_formats::quantize_value(1.0, 0.5).unwrap(), 1.0);
+    assert_eq!(point_formats::quantize_value(1.25, 0.5).unwrap(), 1.5);
+    assert_eq!(point_formats::quantize_value(-1.25, 0.5).unwrap(), -1.5);
+
+    let negative_zero = point_formats::quantize_value(-0.24, 0.5).unwrap();
+    assert_eq!(negative_zero, 0.0);
+    assert_eq!(negative_zero.to_bits(), 0.0f64.to_bits());
+
+    let vec = point_formats::quantize_vec3(Vec3::new(0.24, 0.26, -0.26), 0.5).unwrap();
+    assert_eq!(vec, Vec3::new(0.0, 0.5, -0.5));
+
+    assert!(point_formats::quantize_vec3(Vec3::ZERO, 0.0).is_err());
+    assert!(point_formats::quantize_vec3(Vec3::ZERO, -1.0).is_err());
+    assert!(point_formats::quantize_vec3(Vec3::ZERO, f64::NAN).is_err());
+    assert!(point_formats::quantize_vec3(Vec3::ZERO, f64::INFINITY).is_err());
+    assert!(point_formats::quantize_value(1.0, 0.0).is_err());
+}
+
+#[test]
+fn test_quantizer_preserves_point_cloud_attributes() {
+    let mut point = Point::new(1.24, -1.26, 0.24)
+        .with_intensity(7.5)
+        .with_color(Color::new(100, 200, 300))
+        .with_classification(4)
+        .with_normal(Vec3::new(0.0, 0.0, 1.0));
+    point.return_number = Some(1);
+    point.number_of_returns = Some(2);
+    point.gps_time = Some(123.5);
+    point.scan_angle = Some(-3.0);
+    point
+        .attributes
+        .insert("source_id".to_string(), AttributeValue::UInt(42));
+
+    let original_attrs = point.attributes.clone();
+    let mut cloud = PointCloud::new(vec![point]);
+    cloud.metadata.comments.push("keep me".to_string());
+
+    point_formats::quantize_point_cloud(&mut cloud, 0.5).unwrap();
+
+    let quantized = &cloud.points[0];
+    assert_eq!(quantized.position, Vec3::new(1.0, -1.5, 0.0));
+    assert_eq!(quantized.intensity, Some(7.5));
+    assert_eq!(quantized.color, Some(Color::new(100, 200, 300)));
+    assert_eq!(quantized.classification, Some(4));
+    assert_eq!(quantized.return_number, Some(1));
+    assert_eq!(quantized.number_of_returns, Some(2));
+    assert_eq!(quantized.gps_time, Some(123.5));
+    assert_eq!(quantized.scan_angle, Some(-3.0));
+    assert_eq!(quantized.normal, Some(Vec3::new(0.0, 0.0, 1.0)));
+    assert_eq!(quantized.attributes, original_attrs);
+    assert_eq!(cloud.metadata.comments, vec!["keep me".to_string()]);
+}
+
+#[test]
+fn test_quantizer_preserves_mesh_faces() {
+    let mut v0 = Vertex::new(Vec3::new(0.24, 0.26, 0.0));
+    v0.color = Some(Color::new(1, 2, 3));
+    v0.normal = Some(Vec3::new(0.0, 0.0, 1.0));
+    let mesh = Mesh::new(
+        vec![
+            v0,
+            Vertex::new(Vec3::new(1.24, 0.0, 0.0)),
+            Vertex::new(Vec3::new(0.0, 1.26, 0.0)),
+        ],
+        vec![Face::new(0, 1, 2)],
+    );
+    let mut geometry = Geometry::Mesh(mesh);
+
+    point_formats::quantize_geometry(&mut geometry, 0.5).unwrap();
+
+    match geometry {
+        Geometry::Mesh(mesh) => {
+            assert_eq!(mesh.vertices[0].position, Vec3::new(0.0, 0.5, 0.0));
+            assert_eq!(mesh.vertices[1].position, Vec3::new(1.0, 0.0, 0.0));
+            assert_eq!(mesh.vertices[2].position, Vec3::new(0.0, 1.5, 0.0));
+            assert_eq!(mesh.vertices[0].color, Some(Color::new(1, 2, 3)));
+            assert_eq!(mesh.vertices[0].normal, Some(Vec3::new(0.0, 0.0, 1.0)));
+            assert_eq!(mesh.faces, vec![Face::new(0, 1, 2)]);
+        }
+        Geometry::PointCloud(_) => panic!("expected mesh"),
+    }
+}
+
+#[test]
+fn test_quantize_path_writes_quantized_file() {
+    let dir = std::env::temp_dir().join(format!("quantize_test_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let input = dir.join("scan.xyz");
+    let output = dir.join("scan.ply");
+    std::fs::write(&input, "0.24 0.26 -0.26\n1.24 1.26 1.74\n").unwrap();
+
+    let options = point_formats::QuantizeOptions {
+        step: 0.5,
+        input_format: None,
+        output_format: None,
+        allow_lossy: false,
+        geometry_policy: point_formats::GeometryPolicy::Auto,
+        native: Default::default(),
+    };
+    let report = point_formats::quantize_path(&input, &output, &options).unwrap();
+
+    assert_eq!(report.input_format, Format::Xyz);
+    assert_eq!(report.output_format, Format::Ply);
+    assert_eq!(report.step, 0.5);
+    assert_eq!(report.points_read, 2);
+    assert_eq!(report.points_written, 2);
+    assert_eq!(report.faces_read, 0);
+    assert_eq!(report.faces_written, 0);
+
+    match point_formats::io::read_path(&output, Format::Ply, &Default::default()).unwrap() {
+        Geometry::PointCloud(cloud) => {
+            assert_eq!(cloud.points.len(), 2);
+            assert_eq!(cloud.points[0].position, Vec3::new(0.0, 0.5, -0.5));
+            assert_eq!(cloud.points[1].position, Vec3::new(1.0, 1.5, 1.5));
+        }
+        Geometry::Mesh(_) => panic!("expected point cloud"),
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn test_cli_binary() {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["run", "--bin", "points-convert", "--", "--help"]);
+    cmd.args(["run", "--bin", "points-convert", "--", "--help"]);
     let out = cmd.output().unwrap();
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("points-convert <input> <output>"));
 
     let mut cmd2 = std::process::Command::new("cargo");
-    cmd2.args(&["run", "--bin", "points-convert", "--", "--list-formats"]);
+    cmd2.args(["run", "--bin", "points-convert", "--", "--list-formats"]);
     let out2 = cmd2.output().unwrap();
     assert!(out2.status.success());
     let stdout2 = String::from_utf8(out2.stdout).unwrap();
@@ -863,7 +986,7 @@ fn test_cli_binary() {
 
     // Unknown options should return error (exit code 2)
     let mut cmd3 = std::process::Command::new("cargo");
-    cmd3.args(&["run", "--bin", "points-convert", "--", "--invalid-option"]);
+    cmd3.args(["run", "--bin", "points-convert", "--", "--invalid-option"]);
     let out3 = cmd3.output().unwrap();
     assert_eq!(out3.status.code(), Some(2));
 }

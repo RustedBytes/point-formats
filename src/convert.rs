@@ -98,7 +98,7 @@ pub fn convert_path(
     })
 }
 
-fn apply_geometry_policy(
+pub(crate) fn apply_geometry_policy(
     geometry: Geometry,
     output_format: Format,
     options: &ConvertOptions,

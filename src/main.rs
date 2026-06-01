@@ -1,5 +1,5 @@
 use point_formats::io::{PcdEncoding, PlyEncoding};
-use point_formats::{convert_path, ConvertOptions, Format};
+use point_formats::{convert_path, quantize_path, ConvertOptions, Format, QuantizeOptions};
 use std::env;
 use std::str::FromStr;
 
@@ -21,6 +21,7 @@ where
     }
 
     let mut options = ConvertOptions::default();
+    let mut quantize_step = None;
     let mut input = None;
     let mut output = None;
 
@@ -47,6 +48,15 @@ where
                     .ok_or_else(|| "--output-format requires a value".to_string())?;
                 options.output_format = Some(Format::from_str(&value)?);
             }
+            "--quantize-step" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "--quantize-step requires a value".to_string())?;
+                let step = value.parse::<f64>().map_err(|_| {
+                    format!("--quantize-step requires a numeric value, got '{value}'")
+                })?;
+                quantize_step = Some(step);
+            }
             "--binary-ply" => options.native.ply.encoding = PlyEncoding::BinaryLittleEndian,
             "--ascii-ply" => options.native.ply.encoding = PlyEncoding::Ascii,
             "--binary-pcd" => options.native.pcd.encoding = PcdEncoding::Binary,
@@ -68,13 +78,37 @@ where
 
     let input = input.ok_or_else(|| "missing input path".to_string())?;
     let output = output.ok_or_else(|| "missing output path".to_string())?;
-    let report = convert_path(&input, &output, &options).map_err(|error| error.to_string())?;
-    eprintln!(
-        "converted {} -> {}: {} points, {} faces",
-        report.input_format, report.output_format, report.points_written, report.faces_written
-    );
-    for warning in report.warnings {
-        eprintln!("warning: {warning}");
+    if let Some(step) = quantize_step {
+        let quantize_options = QuantizeOptions {
+            step,
+            input_format: options.input_format,
+            output_format: options.output_format,
+            allow_lossy: options.allow_lossy,
+            geometry_policy: options.geometry_policy,
+            native: options.native,
+        };
+        let report =
+            quantize_path(&input, &output, &quantize_options).map_err(|error| error.to_string())?;
+        eprintln!(
+            "quantized {} -> {} at step {}: {} points, {} faces",
+            report.input_format,
+            report.output_format,
+            report.step,
+            report.points_written,
+            report.faces_written
+        );
+        for warning in report.warnings {
+            eprintln!("warning: {warning}");
+        }
+    } else {
+        let report = convert_path(&input, &output, &options).map_err(|error| error.to_string())?;
+        eprintln!(
+            "converted {} -> {}: {} points, {} faces",
+            report.input_format, report.output_format, report.points_written, report.faces_written
+        );
+        for warning in report.warnings {
+            eprintln!("warning: {warning}");
+        }
     }
     Ok(())
 }
@@ -86,6 +120,7 @@ Options:\n\
   --input-format <fmt>    Override input format detection\n\
   --output-format <fmt>   Override output format detection\n\
   --allow-lossy           Permit mesh->point conversion by dropping faces\n\
+  --quantize-step <step>  Snap output coordinates to a grid step\n\
   --ascii-ply             Write ASCII PLY (default)\n\
   --binary-ply            Write binary little-endian PLY\n\
   --ascii-pcd             Write ASCII PCD (default)\n\
@@ -136,6 +171,16 @@ mod tests {
         // Test missing output path
         assert!(run_with_args(vec!["in.xyz".to_string()]).is_err());
 
+        // Test missing and invalid quantization step
+        assert!(run_with_args(vec!["--quantize-step".to_string()]).is_err());
+        assert!(run_with_args(vec![
+            "--quantize-step".to_string(),
+            "nope".to_string(),
+            "in.xyz".to_string(),
+            "out.ply".to_string(),
+        ])
+        .is_err());
+
         // Test valid options parsing, then fails on execution due to missing file (which is fine)
         let res = run_with_args(vec![
             "--allow-lossy".to_string(),
@@ -149,11 +194,36 @@ mod tests {
             "--ascii-pcd".to_string(),
             "--ascii-stl".to_string(),
             "--binary-stl".to_string(),
+            "--quantize-step".to_string(),
+            "0.01".to_string(),
             "nonexistent_file.xyz".to_string(),
             "output_file.ply".to_string(),
         ]);
         assert!(res.is_err());
         let err = res.unwrap_err();
         assert!(err.contains("No such file or directory") || err.contains("entity not found"));
+    }
+
+    #[test]
+    fn test_main_cli_quantizes_file() {
+        let dir =
+            std::env::temp_dir().join(format!("points_cli_quantize_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("scan.xyz");
+        let output = dir.join("scan.xyz");
+        std::fs::write(&input, "0.24 0.26 -0.26\n").unwrap();
+
+        let result = run_with_args(vec![
+            input.display().to_string(),
+            output.display().to_string(),
+            "--quantize-step".to_string(),
+            "0.5".to_string(),
+        ]);
+        assert!(result.is_ok());
+
+        let contents = std::fs::read_to_string(&output).unwrap();
+        assert!(contents.contains("0.000000 0.500000 -0.500000"));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

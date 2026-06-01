@@ -28,11 +28,16 @@ pub mod convert;
 pub mod error;
 pub mod format;
 pub mod io;
+pub mod quantizer;
 pub mod types;
 
 pub use convert::{convert_path, ConversionReport, ConvertOptions, GeometryPolicy};
 pub use error::{Error, Result};
 pub use format::{Format, FormatFamily, FormatSupport};
+pub use quantizer::{
+    quantize_geometry, quantize_mesh, quantize_path, quantize_point, quantize_point_cloud,
+    quantize_value, quantize_vec3, QuantizationReport, QuantizeOptions,
+};
 pub use types::{
     AttributeValue, Bounds3, Color, Face, Geometry, Mesh, Metadata, Point, PointCloud, Vec3, Vertex,
 };

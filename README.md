@@ -65,6 +65,7 @@ The `Format` enum also represents formats that require heavy external SDKs, spec
 cargo run --bin points-convert -- scan.xyz scan.ply
 cargo run --bin points-convert -- scan.pcd scan.ply --binary-ply
 cargo run --bin points-convert -- mesh.obj vertices.csv --allow-lossy
+cargo run --bin points-convert -- scan.xyz quantized.ply --quantize-step 0.01
 cargo run --bin points-convert -- --list-formats
 ```
 
